@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Node {
+  id        String   @id @default(uuid())
+  name      String
+  type      NodeType @default(TOPIC)
+  parentId  String?
+  color     String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent   Node?   @relation("NodeChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children Node[]  @relation("NodeChildren")
+  contents Content[]
+  sourceEdges Edge[] @relation("SourceEdge")
+  targetEdges Edge[] @relation("TargetEdge")
+
+  @@index([parentId, sortOrder])
+}
+
+model Content {
+  id        String      @id @default(uuid())
+  nodeId    String
+  title     String?
+  body      Json        @default("{}")
+  type      ContentType @default(NOTE)
+  tags      String[]    @default([])
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  node        Node         @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+
+  @@index([nodeId, updatedAt])
+}
+
+model Edge {
+  id        String   @id @default(uuid())
+  sourceId  String
+  targetId  String
+  label     String?
+  createdAt DateTime @default(now())
+
+  source Node @relation("SourceEdge", fields: [sourceId], references: [id], onDelete: Cascade)
+  target Node @relation("TargetEdge", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId, targetId])
+  @@unique([sourceId, targetId])
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  contentId String
+  fileName  String
+  fileUrl   String
+  fileType  String
+  fileSize  Int
+  createdAt DateTime @default(now())
+
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+}
+
+enum NodeType {
+  ROOT
+  SYSTEM
+  SUBSYSTEM
+  TOPIC
+}
+
+enum ContentType {
+  NOTE
+  TODO
+  CODE
+  LINK
+  CHECKLIST
+}
