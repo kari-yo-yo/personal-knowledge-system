@@ -10,11 +10,12 @@ const updateNodeSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const node = await prisma.node.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         children: { orderBy: { sortOrder: 'asc' } },
         contents: { orderBy: { updatedAt: 'desc' } },
@@ -35,21 +36,22 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     const data = updateNodeSchema.parse(body)
 
     const node = await prisma.node.update({
-      where: { id: params.id },
+      where: { id },
       data,
     })
 
     return NextResponse.json({ node })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
+      return NextResponse.json({ error: error.issues }, { status: 400 })
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -57,10 +59,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await prisma.node.delete({ where: { id: params.id } })
+    const { id } = await params
+    await prisma.node.delete({ where: { id } })
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

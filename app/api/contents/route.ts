@@ -5,7 +5,7 @@ import { z } from 'zod'
 const createContentSchema = z.object({
   nodeId: z.string().uuid(),
   title: z.string().optional(),
-  body: z.record(z.any()),
+  body: z.record(z.string(), z.any()),
   type: z.enum(['NOTE', 'TODO', 'CODE', 'LINK', 'CHECKLIST']).optional(),
   tags: z.array(z.string()).optional(),
 })
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ content }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
+      return NextResponse.json({ error: error.issues }, { status: 400 })
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
