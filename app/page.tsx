@@ -1,12 +1,32 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Menu, Plus, Search, Network } from 'lucide-react'
 import Link from 'next/link'
+import { Node } from '@/lib/types'
 
 export default function HomePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [systems, setSystems] = useState<Node[]>([])
+
+  useEffect(() => {
+    fetch('/api/nodes')
+      .then((res) => res.json())
+      .then((data) => {
+        const rootChildren = data.nodes?.[0]?.children || []
+        setSystems(rootChildren)
+      })
+  }, [])
+
+  const sysMeta: Record<string, { color: string; desc: string }> = {
+    '学习系统': { color: 'bg-blue-100 text-blue-700', desc: '知识、方法、改错' },
+    '性格系统': { color: 'bg-green-100 text-green-700', desc: '性格认知与不足' },
+    '人际交往系统': { color: 'bg-yellow-100 text-yellow-700', desc: '交往能力与方法' },
+    '安全系统': { color: 'bg-red-100 text-red-700', desc: '安全常识' },
+    '目标愿望系统': { color: 'bg-purple-100 text-purple-700', desc: '目标与愿望追踪' },
+    '灵感系统': { color: 'bg-orange-100 text-orange-700', desc: '随手记录灵感' },
+  }
 
   return (
     <div className="flex h-screen bg-slate-50">
@@ -60,28 +80,25 @@ export default function HomePage() {
           <div className="max-w-4xl mx-auto">
             <h2 className="text-xl font-semibold text-slate-800 mb-4">欢迎来到个人成长知识管理系统</h2>
             <p className="text-slate-600 mb-6">
-              左侧导航栏查看各系统，点击"+"按钮快速添加内容，网络视图查看知识关联。
+              点击卡片进入各系统，左侧导航栏查看完整层级，"+"按钮快速添加内容。
             </p>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[
-                { name: '学习系统', color: 'bg-blue-100 text-blue-700', desc: '知识、方法、改错' },
-                { name: '性格系统', color: 'bg-green-100 text-green-700', desc: '性格认知与不足' },
-                { name: '人际交往', color: 'bg-yellow-100 text-yellow-700', desc: '交往能力与方法' },
-                { name: '安全系统', color: 'bg-red-100 text-red-700', desc: '安全常识' },
-                { name: '目标愿望', color: 'bg-purple-100 text-purple-700', desc: '目标与愿望追踪' },
-                { name: '灵感系统', color: 'bg-orange-100 text-orange-700', desc: '随手记录灵感' },
-              ].map((sys) => (
-                <div
-                  key={sys.name}
-                  className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <h3 className={`inline-block px-2 py-1 rounded text-sm font-medium ${sys.color}`}>
-                    {sys.name}
-                  </h3>
-                  <p className="text-sm text-slate-500 mt-2">{sys.desc}</p>
-                </div>
-              ))}
+              {systems.map((sys) => {
+                const meta = sysMeta[sys.name] || { color: 'bg-slate-100 text-slate-700', desc: '' }
+                return (
+                  <Link
+                    key={sys.id}
+                    href={`/node/${sys.id}`}
+                    className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-shadow cursor-pointer block"
+                  >
+                    <h3 className={`inline-block px-2 py-1 rounded text-sm font-medium ${meta.color}`}>
+                      {sys.name}
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-2">{meta.desc}</p>
+                  </Link>
+                )
+              })}
             </div>
           </div>
         </div>

@@ -1,8 +1,15 @@
-import { Content, Attachment } from '@/lib/types'
+import { Attachment } from '@/lib/types'
 import { FileText, CheckSquare, Code, Link, ListChecks } from 'lucide-react'
 
 interface ContentCardProps {
-  content: Content & { attachments?: Attachment[] }
+  content: {
+    id: string
+    title?: string | null
+    body?: any
+    type: string
+    tags: string[]
+    attachments?: Attachment[]
+  }
 }
 
 const typeIcons = {
@@ -14,7 +21,8 @@ const typeIcons = {
 }
 
 export function ContentCard({ content }: ContentCardProps) {
-  const Icon = typeIcons[content.type] || FileText
+  const Icon = typeIcons[content.type as keyof typeof typeIcons] || FileText
+  const tags = Array.isArray(content.tags) ? content.tags : []
 
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-4 hover:shadow-sm transition-shadow">
@@ -28,12 +36,12 @@ export function ContentCard({ content }: ContentCardProps) {
             <h3 className="font-medium text-slate-800 mb-1">{content.title}</h3>
           )}
           <p className="text-sm text-slate-500 line-clamp-3">
-            {JSON.stringify(content.body).slice(0, 200)}
+            {typeof content.body === 'string' ? content.body.slice(0, 200) : JSON.stringify(content.body).slice(0, 200)}
           </p>
           
-          {content.tags.length > 0 && (
+          {tags.length > 0 && (
             <div className="flex gap-1 mt-2 flex-wrap">
-              {content.tags.map((tag) => (
+              {tags.map((tag) => (
                 <span key={tag} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
                   {tag}
                 </span>

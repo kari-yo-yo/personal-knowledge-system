@@ -11,8 +11,10 @@ export default function InspirationPage() {
   const [text, setText] = useState('')
   const [showAI, setShowAI] = useState(false)
 
+  const [savedTo, setSavedTo] = useState('')
+
   const handleConfirm = async (nodeId: string) => {
-    await fetch('/api/contents', {
+    const res = await fetch('/api/contents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -22,9 +24,10 @@ export default function InspirationPage() {
         type: 'NOTE',
       }),
     })
+    const data = await res.json()
     setText('')
     setShowAI(false)
-    alert('灵感已保存！')
+    setSavedTo(nodeId)
   }
 
   return (
@@ -69,6 +72,24 @@ export default function InspirationPage() {
                 )}
               </div>
             </div>
+
+            {savedTo && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                <p className="text-green-800 font-medium mb-2">灵感已保存！</p>
+                <Link
+                  href={`/node/${savedTo}`}
+                  className="inline-block px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm"
+                >
+                  去查看已保存的内容
+                </Link>
+                <button
+                  onClick={() => { setSavedTo(''); setText('') }}
+                  className="ml-2 text-sm text-green-700 hover:underline"
+                >
+                  继续记录
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </main>

@@ -14,15 +14,14 @@ export async function GET(request: NextRequest) {
   const [nodes, contents] = await Promise.all([
     prisma.node.findMany({
       where: {
-        name: { contains: keyword, mode: 'insensitive' },
+        name: { contains: keyword },
       },
       take: 10,
     }),
     prisma.content.findMany({
       where: {
         OR: [
-          { title: { contains: keyword, mode: 'insensitive' } },
-          { tags: { has: keyword } },
+          { title: { contains: keyword } },
         ],
       },
       take: 10,
@@ -30,8 +29,14 @@ export async function GET(request: NextRequest) {
     }),
   ])
 
+  const parsedContents = contents.map((c: any) => ({
+    ...c,
+    body: typeof c.body === 'string' ? JSON.parse(c.body || '{}') : c.body,
+    tags: typeof c.tags === 'string' ? JSON.parse(c.tags || '[]') : c.tags,
+  }))
+
   return NextResponse.json({
-    results: { nodes, contents },
-    total: nodes.length + contents.length,
+    results: { nodes, contents: parsedContents },
+    total: nodes.length + parsedContents.length,
   })
 }

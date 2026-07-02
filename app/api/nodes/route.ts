@@ -5,7 +5,7 @@ import { z } from 'zod'
 const createNodeSchema = z.object({
   name: z.string().min(1),
   parentId: z.string().uuid().optional(),
-  type: z.enum(['ROOT', 'SYSTEM', 'SUBSYSTEM', 'TOPIC']).optional(),
+  type: z.string().optional(),
   color: z.string().optional(),
 })
 

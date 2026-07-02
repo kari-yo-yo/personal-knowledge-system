@@ -5,7 +5,7 @@ import { z } from 'zod'
 const updateContentSchema = z.object({
   title: z.string().optional(),
   body: z.record(z.string(), z.any()).optional(),
-  type: z.enum(['NOTE', 'TODO', 'CODE', 'LINK', 'CHECKLIST']).optional(),
+  type: z.string().optional(),
   tags: z.array(z.string()).optional(),
 })
 
@@ -18,13 +18,19 @@ export async function PUT(
     const body = await request.json()
     const data = updateContentSchema.parse(body)
 
+    const updateData: any = {}
+    if (data.title !== undefined) updateData.title = data.title
+    if (data.body !== undefined) updateData.body = JSON.stringify(data.body)
+    if (data.type !== undefined) updateData.type = data.type
+    if (data.tags !== undefined) updateData.tags = JSON.stringify(data.tags)
+
     const content = await prisma.content.update({
       where: { id },
-      data,
+      data: updateData,
       include: { attachments: true },
     })
 
-    return NextResponse.json({ content })
+    return NextResponse.json({ content: { ...content, body: data.body, tags: data.tags } })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues }, { status: 400 })

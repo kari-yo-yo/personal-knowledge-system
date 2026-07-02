@@ -49,21 +49,38 @@ export function AIClassifyPanel({ text, onConfirm, onCancel }: AIClassifyPanelPr
         <span className="font-medium text-purple-800">AI 建议归档到：</span>
       </div>
       
-      <div className="flex items-center gap-2 mb-4">
-        <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
-          推荐节点
-        </span>
-        <span className="text-sm text-slate-600">
+      <div className="mb-3">
+        <div className="px-3 py-2 bg-purple-100 text-purple-800 rounded-lg font-medium">
+          {result.suggestedNodeName || '推荐节点'}
+        </div>
+        <div className="text-xs text-slate-500 mt-1">
           置信度: {Math.round(result.confidence * 100)}%
-        </span>
+        </div>
       </div>
+
+      {result.alternatives && result.alternatives.length > 0 && (
+        <div className="mb-3">
+          <span className="text-xs text-slate-500">其他选项：</span>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {result.alternatives.map((alt: any) => (
+              <button
+                key={alt.nodeId}
+                onClick={() => onConfirm(alt.nodeId)}
+                className="px-2 py-1 bg-white border border-purple-200 text-purple-700 rounded text-xs hover:bg-purple-50"
+              >
+                {alt.nodeName}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       
       <div className="flex gap-2">
         <button
           onClick={() => onConfirm(result.suggestedNodeId)}
           className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm"
         >
-          <Check size={14} /> 确认
+          <Check size={14} /> 确认保存到「{result.suggestedNodeName}」
         </button>
         <button
           onClick={onCancel}

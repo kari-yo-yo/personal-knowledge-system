@@ -8,6 +8,17 @@ const updateNodeSchema = z.object({
   sortOrder: z.number().optional(),
 })
 
+function parseNodeContents(node: any) {
+  if (node.contents) {
+    node.contents = node.contents.map((c: any) => ({
+      ...c,
+      body: typeof c.body === 'string' ? JSON.parse(c.body || '{}') : c.body,
+      tags: typeof c.tags === 'string' ? JSON.parse(c.tags || '[]') : c.tags,
+    }))
+  }
+  return node
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -28,7 +39,7 @@ export async function GET(
       return NextResponse.json({ error: 'Node not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ node })
+    return NextResponse.json({ node: parseNodeContents(node) })
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

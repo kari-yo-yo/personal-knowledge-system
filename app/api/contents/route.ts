@@ -5,8 +5,8 @@ import { z } from 'zod'
 const createContentSchema = z.object({
   nodeId: z.string().uuid(),
   title: z.string().optional(),
-  body: z.record(z.string(), z.any()),
-  type: z.enum(['NOTE', 'TODO', 'CODE', 'LINK', 'CHECKLIST']).optional(),
+  body: z.record(z.string(), z.any()).optional(),
+  type: z.string().optional(),
   tags: z.array(z.string()).optional(),
 })
 
@@ -16,11 +16,17 @@ export async function POST(request: NextRequest) {
     const data = createContentSchema.parse(body)
 
     const content = await prisma.content.create({
-      data,
+      data: {
+        nodeId: data.nodeId,
+        title: data.title,
+        body: JSON.stringify(data.body || {}),
+        type: data.type || 'NOTE',
+        tags: JSON.stringify(data.tags || []),
+      },
       include: { attachments: true },
     })
 
-    return NextResponse.json({ content }, { status: 201 })
+    return NextResponse.json({ content: { ...content, body: data.body, tags: data.tags || [] } }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues }, { status: 400 })

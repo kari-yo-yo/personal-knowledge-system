@@ -3,14 +3,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 model Node {
   id        String   @id @default(uuid())
   name      String
-  type      NodeType @default(TOPIC)
+  type      String   @default("TOPIC")
   parentId  String?
   color     String?
   sortOrder Int      @default(0)
@@ -27,14 +27,14 @@ model Node {
 }
 
 model Content {
-  id        String      @id @default(uuid())
+  id        String   @id @default(uuid())
   nodeId    String
   title     String?
-  body      Json        @default("{}")
-  type      ContentType @default(NOTE)
-  tags      String[]    @default([])
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  body      String   @default("{}")
+  type      String   @default("NOTE")
+  tags      String   @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   node        Node         @relation(fields: [nodeId], references: [id], onDelete: Cascade)
   attachments Attachment[]
@@ -66,19 +66,4 @@ model Attachment {
   createdAt DateTime @default(now())
 
   content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
-}
-
-enum NodeType {
-  ROOT
-  SYSTEM
-  SUBSYSTEM
-  TOPIC
-}
-
-enum ContentType {
-  NOTE
-  TODO
-  CODE
-  LINK
-  CHECKLIST
 }

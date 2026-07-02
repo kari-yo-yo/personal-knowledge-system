@@ -54,11 +54,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       suggestedNodeId: bestMatch?.id,
+      suggestedNodeName: bestMatch?.name,
       confidence: Math.min(bestScore / 20, 1),
       alternatives: nodes
         .filter((n) => n.id !== bestMatch?.id)
         .slice(0, 3)
-        .map((n) => ({ nodeId: n.id, reason: `名称匹配: ${n.name}` })),
+        .map((n) => ({ nodeId: n.id, nodeName: n.name, reason: `名称匹配: ${n.name}` })),
     })
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

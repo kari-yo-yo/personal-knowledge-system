@@ -23,7 +23,13 @@ export async function GET(
       prisma.content.count({ where: { nodeId: id } }),
     ])
 
-    return NextResponse.json({ contents, total, page, limit })
+    const parsedContents = contents.map((c: any) => ({
+      ...c,
+      body: typeof c.body === 'string' ? JSON.parse(c.body || '{}') : c.body,
+      tags: typeof c.tags === 'string' ? JSON.parse(c.tags || '[]') : c.tags,
+    }))
+
+    return NextResponse.json({ contents: parsedContents, total, page, limit })
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

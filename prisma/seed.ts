@@ -1,18 +1,16 @@
-import { PrismaClient, NodeType } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
 async function main() {
-  // 创建根节点
   const root = await prisma.node.create({
     data: {
       name: '个人成长总系统',
-      type: NodeType.ROOT,
+      type: 'ROOT',
       color: '#4a90d9',
     },
   })
 
-  // 创建六大系统
   const systems = [
     { name: '学习系统', color: '#4a90d9', subs: ['知识系统', '方法系统', '防漏系统', '改错系统', '不足之处/可优化'] },
     { name: '性格系统', color: '#34a853', subs: ['性格认知系统', '不足之处系统'] },
@@ -26,7 +24,7 @@ async function main() {
     const system = await prisma.node.create({
       data: {
         name: sys.name,
-        type: NodeType.SYSTEM,
+        type: 'SYSTEM',
         parentId: root.id,
         color: sys.color,
       },
@@ -36,7 +34,7 @@ async function main() {
       await prisma.node.create({
         data: {
           name: sub,
-          type: NodeType.SUBSYSTEM,
+          type: 'SUBSYSTEM',
           parentId: system.id,
           color: sys.color,
         },

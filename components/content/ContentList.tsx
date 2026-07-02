@@ -1,15 +1,23 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Content, Attachment } from '@/lib/types'
 import { ContentCard } from './ContentCard'
+
+interface ContentItem {
+  id: string
+  title?: string | null
+  body?: any
+  type: string
+  tags: string[]
+  attachments?: any[]
+}
 
 interface ContentListProps {
   nodeId: string
 }
 
 export function ContentList({ nodeId }: ContentListProps) {
-  const [contents, setContents] = useState<(Content & { attachments?: Attachment[] })[]>([])
+  const [contents, setContents] = useState<ContentItem[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
