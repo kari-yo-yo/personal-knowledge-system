@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       db.sessions.delete(s.id)
     }
 
-    db.save()
+    await db.save()
 
     return NextResponse.json({ message: '密码重置成功，请用新密码登录' })
   } catch (error: any) {

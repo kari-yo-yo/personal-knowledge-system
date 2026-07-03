@@ -6,6 +6,9 @@ export async function getCurrentUser() {
   const token = cookieStore.get('session_token')?.value
   if (!token) return null
 
+  // Ensure data is loaded from Supabase
+  await db.load()
+
   // Find session by token
   const session = Array.from(db.sessions.values()).find((s: any) => s.token === token)
   if (!session) return null

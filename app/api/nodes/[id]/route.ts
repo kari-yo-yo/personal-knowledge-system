@@ -91,7 +91,7 @@ export async function PUT(
       updatedAt: new Date().toISOString(),
     }
     db.nodes.set(id, updated)
-    db.save()
+    await db.save()
 
     return NextResponse.json({ node: updated })
   } catch (error) {
@@ -150,7 +150,7 @@ export async function DELETE(
       }
     }
 
-    db.save()
+    await db.save()
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

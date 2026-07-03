@@ -2,16 +2,41 @@
 
 import { useState } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
-import { Menu, ArrowLeft, Send, RotateCcw, Star } from 'lucide-react'
+import { Menu, ArrowLeft, Send, RotateCcw, Star, BookOpen, CheckCircle, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react'
 import Link from 'next/link'
+
+interface ComparisonItem {
+  original: string
+  suggestion: string
+  reason: string
+}
+
+interface FeynmanResult {
+  score: number
+  level: string
+  feedback: string[]
+  improvedVersion: string
+  comparison: ComparisonItem[]
+  memoryTip: string
+}
+
+interface StandardResult {
+  concept: string
+  explanation: string
+  keyPoints: string[]
+}
 
 export default function FeynmanPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [concept, setConcept] = useState('')
   const [explanation, setExplanation] = useState('')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<FeynmanResult | null>(null)
   const [history, setHistory] = useState<any[]>([])
+  const [standardLoading, setStandardLoading] = useState(false)
+  const [standardAnswer, setStandardAnswer] = useState<StandardResult | null>(null)
+  const [showStandard, setShowStandard] = useState(false)
+  const [showComparison, setShowComparison] = useState(true)
 
   const handleSubmit = async () => {
     if (!concept.trim() || !explanation.trim()) return
@@ -27,10 +52,33 @@ export default function FeynmanPage() {
     setLoading(false)
   }
 
+  const handleFetchStandard = async () => {
+    if (!concept.trim()) return
+    setStandardLoading(true)
+    const res = await fetch('/api/feynman/standard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ concept }),
+    })
+    const data = await res.json()
+    setStandardAnswer(data.result)
+    setShowStandard(true)
+    setStandardLoading(false)
+  }
+
+  const handleAdopt = () => {
+    if (result?.improvedVersion) {
+      setExplanation(result.improvedVersion)
+      setResult(null)
+    }
+  }
+
   const handleReset = () => {
     setConcept('')
     setExplanation('')
     setResult(null)
+    setStandardAnswer(null)
+    setShowStandard(false)
   }
 
   const scoreColor = (s: number) => {
@@ -79,11 +127,56 @@ export default function FeynmanPage() {
                   </label>
                   <input
                     value={concept}
-                    onChange={(e) => setConcept(e.target.value)}
+                    onChange={(e) => {
+                      setConcept(e.target.value)
+                      setStandardAnswer(null)
+                      setShowStandard(false)
+                    }}
                     placeholder="例如：复利、熵增、区块链..."
                     className="w-full px-4 py-3 bg-[#FFF8F0] border border-[#F0E6D8] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B8A]/50 text-[#5D4E37]"
                   />
+                  {concept.trim() && (
+                    <button
+                      onClick={handleFetchStandard}
+                      disabled={standardLoading}
+                      className="mt-2 flex items-center gap-1.5 text-xs text-[#FF6B8A] hover:text-[#FF5277] font-medium"
+                    >
+                      <BookOpen size={14} />
+                      {standardLoading ? '加载中...' : '查看标准答案'}
+                    </button>
+                  )}
                 </div>
+
+                {showStandard && standardAnswer && (
+                  <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-medium text-[#5D4E37] flex items-center gap-1.5">
+                        <BookOpen size={16} className="text-[#FF6B8A]" />
+                        标准答案参考
+                      </h3>
+                      <button
+                        onClick={() => setShowStandard(false)}
+                        className="text-xs text-[#8B7D6B] hover:text-[#5D4E37]"
+                      >
+                        收起
+                      </button>
+                    </div>
+                    <p className="text-sm text-[#5D4E37] leading-relaxed bg-[#FFF8F0] rounded-xl p-3">
+                      {standardAnswer.explanation}
+                    </p>
+                    <div className="mt-3">
+                      <p className="text-xs font-medium text-[#8B7D6B] mb-1.5">关键要点：</p>
+                      <div className="space-y-1.5">
+                        {standardAnswer.keyPoints.map((point, i) => (
+                          <div key={i} className="flex items-start gap-2 text-xs text-[#5D4E37]">
+                            <span className="text-[#FF6B8A] font-bold shrink-0">{i + 1}.</span>
+                            <span>{point}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
                   <label className="block text-sm font-medium text-[#5D4E37] mb-2">
@@ -148,6 +241,68 @@ export default function FeynmanPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* 修改建议 */}
+                <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-medium text-[#5D4E37] flex items-center gap-1.5">
+                      <CheckCircle size={16} className="text-[#FF6B8A]" />
+                      修改建议
+                    </h3>
+                    <button
+                      onClick={handleAdopt}
+                      className="text-xs flex items-center gap-1 px-2.5 py-1.5 bg-[#FF6B8A] hover:bg-[#FF5277] text-white rounded-lg font-medium"
+                    >
+                      <CheckCircle size={12} />
+                      采纳修改
+                    </button>
+                  </div>
+                  <p className="text-sm text-[#5D4E37] leading-relaxed bg-[#FFF8F0] rounded-xl p-3">
+                    {result.improvedVersion}
+                  </p>
+                </div>
+
+                {/* 对比学习 */}
+                {result.comparison.length > 0 && (
+                  <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
+                    <button
+                      onClick={() => setShowComparison(!showComparison)}
+                      className="w-full flex items-center justify-between mb-2"
+                    >
+                      <h3 className="font-medium text-[#5D4E37] flex items-center gap-1.5">
+                        <Lightbulb size={16} className="text-[#FFB347]" />
+                        对比学习
+                      </h3>
+                      {showComparison ? <ChevronUp size={16} className="text-[#8B7D6B]" /> : <ChevronDown size={16} className="text-[#8B7D6B]" />}
+                    </button>
+                    {showComparison && (
+                      <div className="space-y-3">
+                        {result.comparison.map((item, i) => (
+                          <div key={i} className="rounded-xl border border-[#F0E6D8] overflow-hidden">
+                            <div className="bg-[#FFF8F0] px-3 py-2 text-xs font-medium text-[#8B7D6B]">你的原文</div>
+                            <div className="px-3 py-2 text-sm text-[#5D4E37]">{item.original}</div>
+                            <div className="bg-[#FF6B8A]/5 px-3 py-2 text-xs font-medium text-[#FF6B8A]">建议改为</div>
+                            <div className="px-3 py-2 text-sm text-[#5D4E37]">{item.suggestion}</div>
+                            <div className="bg-[#A8D8EA]/10 px-3 py-2 text-xs text-[#5D4E37]">
+                              <span className="font-medium">原因：</span>{item.reason}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 记忆口诀 */}
+                <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
+                  <h3 className="font-medium text-[#5D4E37] mb-2 flex items-center gap-1.5">
+                    <Star size={16} className="text-[#FFD93D]" />
+                    记忆口诀
+                  </h3>
+                  <p className="text-sm text-[#5D4E37] leading-relaxed bg-[#FFF8F0] rounded-xl p-3 font-medium">
+                    {result.memoryTip}
+                  </p>
                 </div>
 
                 <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">

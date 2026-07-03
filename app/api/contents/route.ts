@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     db.contents.set(id, content)
-    db.save()
+    await db.save()
 
     return NextResponse.json({
       content: {

@@ -77,3 +77,13 @@ export interface CreateEdgeInput {
   targetId: string
   label?: string
 }
+
+export interface UserPreference {
+  id: string
+  userId: string
+  keyword: string
+  preferredNodeId: string
+  count: number
+  createdAt: string
+  updatedAt: string
+}

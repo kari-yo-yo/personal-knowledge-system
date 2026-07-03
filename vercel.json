@@ -2,5 +2,6 @@
   "framework": "nextjs",
   "buildCommand": "npx next build",
   "outputDirectory": ".next",
-  "regions": ["hkg1"]
+  "regions": ["hkg1"],
+  "installCommand": "npm install --legacy-peer-deps"
 }

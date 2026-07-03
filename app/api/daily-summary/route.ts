@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
         updatedAt: now,
       }
       db.dailySummaries.set(existing.id, updated)
-      db.save()
+      await db.save()
       return NextResponse.json({ summary: updated })
     } else {
       const id = crypto.randomUUID()
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         updatedAt: now,
       }
       db.dailySummaries.set(id, summary)
-      db.save()
+      await db.save()
       return NextResponse.json({ summary })
     }
   } catch (error) {

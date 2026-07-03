@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     db.edges.set(id, edge)
-    db.save()
+    await db.save()
 
     return NextResponse.json({
       edge: {
@@ -102,7 +102,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     db.edges.delete(id)
-    db.save()
+    await db.save()
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     db.nodes.set(id, node)
-    db.save()
+    await db.save()
 
     return NextResponse.json({ node }, { status: 201 })
   } catch (error) {

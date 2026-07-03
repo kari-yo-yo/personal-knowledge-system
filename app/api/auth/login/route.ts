@@ -10,6 +10,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '用户名和密码不能为空' }, { status: 400 })
     }
 
+    // Ensure data is loaded from Supabase before querying
+    await db.load()
+
     // Find user by username
     const user = Array.from(db.users.values()).find((u: any) => u.username === username.trim())
     if (!user) {
@@ -39,10 +42,11 @@ export async function POST(request: NextRequest) {
     }
     db.sessions.set(sessionId, session)
 
-    db.save()
+    await db.save()
 
     const response = NextResponse.json({
       user: { id: user.id, username: user.username },
+      token,
     })
 
     response.cookies.set('session_token', token, {

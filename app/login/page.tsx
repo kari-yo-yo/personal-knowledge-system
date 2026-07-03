@@ -30,7 +30,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const { refresh } = useAuth()
+  const { login } = useAuth()
 
   const resetAll = () => {
     setError('')
@@ -77,7 +77,7 @@ export default function LoginPage() {
           return
         }
 
-        await refresh()
+        await login(data.token)
         router.replace('/')
       } else if (mode === 'login') {
         const res = await fetch('/api/auth/login', {
@@ -93,7 +93,7 @@ export default function LoginPage() {
           return
         }
 
-        await refresh()
+        await login(data.token)
         router.replace('/')
       } else if (mode === 'forgot') {
         if (step === 1) {

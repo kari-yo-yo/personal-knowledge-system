@@ -111,10 +111,11 @@ export async function POST(request: NextRequest) {
     }
     db.sessions.set(sessionId, session)
 
-    db.save()
+    await db.save()
 
     const response = NextResponse.json({
       user: { id: user.id, username: user.username },
+      token,
     })
 
     response.cookies.set('session_token', token, {

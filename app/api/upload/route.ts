@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, unauthorizedResponse } from '@/lib/auth-middleware'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const isSupabaseConfigured = !!(supabaseUrl && supabaseKey)
+
+function getSupabase() {
+  return createClient(supabaseUrl, supabaseKey)
+}
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
 const textTypes = [
   'text/plain', 'text/markdown', 'text/csv', 'application/json',
@@ -21,36 +32,147 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
+    const nodeId = formData.get('nodeId') as string | null
+    const contentId = formData.get('contentId') as string | null
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
     }
 
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: '文件太大（最大 10MB）' }, { status: 400 })
+    }
+
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    let text = ''
-    const isText = isTextFile(file)
+    let url: string
+    let storagePath: string | null = null
 
-    if (isText) {
-      text = buffer.toString('utf-8')
-      if (text.length > 50000) {
-        text = text.slice(0, 50000) + '\n...（内容已截断）'
+    if (isSupabaseConfigured) {
+      const supabase = getSupabase()
+      const bucketName = 'attachments'
+      const filePath = `${user.id}/${Date.now()}-${file.name}`
+
+      // Try upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, buffer, {
+          contentType: file.type || 'application/octet-stream',
+          upsert: false,
+        })
+
+      if (uploadError) {
+        // If bucket doesn't exist, try to create it
+        if (uploadError.message?.includes('bucket') || uploadError.message?.includes('Bucket')) {
+          const { error: createBucketError } = await supabase.storage.createBucket(bucketName, {
+            public: true,
+          })
+          if (!createBucketError) {
+            // Retry upload
+            const { error: retryError } = await supabase.storage
+              .from(bucketName)
+              .upload(filePath, buffer, {
+                contentType: file.type || 'application/octet-stream',
+                upsert: false,
+              })
+            if (!retryError) {
+              const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(filePath)
+              url = publicUrlData.publicUrl
+              storagePath = filePath
+            } else {
+              console.error('Retry storage upload error:', retryError)
+              url = `data:${file.type || 'application/octet-stream'};base64,${buffer.toString('base64')}`
+            }
+          } else {
+            console.error('Create bucket error:', createBucketError)
+            url = `data:${file.type || 'application/octet-stream'};base64,${buffer.toString('base64')}`
+          }
+        } else {
+          console.error('Storage upload error:', uploadError)
+          url = `data:${file.type || 'application/octet-stream'};base64,${buffer.toString('base64')}`
+        }
+      } else {
+        const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(filePath)
+        url = publicUrlData.publicUrl
+        storagePath = filePath
       }
     } else {
-      // For binary files (Word, PPT, PDF), we can't extract text in serverless
-      // Return file info so the client can use the filename for analysis
-      text = `[文件: ${file.name}]\n该文件类型暂不支持自动解析内容，已保存文件信息。`
+      // No Supabase configured: base64
+      url = `data:${file.type || 'application/octet-stream'};base64,${buffer.toString('base64')}`
     }
 
-    return NextResponse.json({
+    // Determine contentId to attach to
+    let finalContentId = contentId
+
+    if (!finalContentId && nodeId && isSupabaseConfigured) {
+      // Create a placeholder content item for this file
+      const supabase = getSupabase()
+      const now = new Date().toISOString()
+      const newContentId = crypto.randomUUID()
+      const { error: contentError } = await supabase.from('contents').insert({
+        id: newContentId,
+        node_id: nodeId,
+        user_id: user.id,
+        title: file.name,
+        body: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '文件上传' }] }] },
+        type: 'NOTE',
+        tags: [],
+        created_at: now,
+        updated_at: now,
+      })
+      if (contentError) {
+        console.error('Failed to create placeholder content:', contentError)
+      } else {
+        finalContentId = newContentId
+      }
+    }
+
+    // Save attachment metadata
+    const attachmentId = crypto.randomUUID()
+    const now = new Date().toISOString()
+
+    if (isSupabaseConfigured) {
+      const supabase = getSupabase()
+      const { error: attachError } = await supabase.from('attachments').insert({
+        id: attachmentId,
+        content_id: finalContentId || null,
+        file_name: file.name,
+        file_type: file.type || 'application/octet-stream',
+        file_size: file.size,
+        url,
+        user_id: user.id,
+        created_at: now,
+      })
+      if (attachError) {
+        console.error('Failed to save attachment metadata:', attachError)
+      }
+    }
+
+    const attachment = {
+      id: attachmentId,
+      contentId: finalContentId || null,
       fileName: file.name,
-      fileType: file.type,
+      fileType: file.type || 'application/octet-stream',
       fileSize: file.size,
-      isText,
+      fileUrl: url,
+      createdAt: now,
+    }
+
+    const text = isTextFile(file) ? buffer.toString('utf-8').slice(0, 50000) : ''
+
+    return NextResponse.json({
+      attachment,
+      url,
+      fileName: file.name,
+      fileType: file.type || 'application/octet-stream',
+      fileSize: file.size,
+      isText: isTextFile(file),
       text,
+      storagePath,
     })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('Upload error:', error)
+    return NextResponse.json({ error: error.message || '上传失败' }, { status: 500 })
   }
 }

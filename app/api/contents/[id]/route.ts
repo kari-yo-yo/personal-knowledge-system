@@ -39,7 +39,7 @@ export async function PUT(
     if (data.tags !== undefined) updated.tags = JSON.stringify(data.tags)
 
     db.contents.set(id, updated)
-    db.save()
+    await db.save()
 
     // Attach attachments
     const allAttachments = Array.from(db.attachments.values()) as any[]
@@ -85,7 +85,7 @@ export async function DELETE(
       }
     }
 
-    db.save()
+    await db.save()
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
