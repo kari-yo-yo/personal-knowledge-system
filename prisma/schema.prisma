@@ -1,10 +1,33 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x"]
 }
 
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  nodes          Node[]
+  contents       Content[]
+  edges          Edge[]
+  dailySummaries DailySummary[]
+  sessions       Session[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Node {
@@ -14,6 +37,7 @@ model Node {
   parentId  String?
   color     String?
   sortOrder Int      @default(0)
+  userId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -22,13 +46,16 @@ model Node {
   contents Content[]
   sourceEdges Edge[] @relation("SourceEdge")
   targetEdges Edge[] @relation("TargetEdge")
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([parentId, sortOrder])
+  @@index([userId])
 }
 
 model Content {
   id        String   @id @default(uuid())
   nodeId    String
+  userId    String
   title     String?
   body      String   @default("{}")
   type      String   @default("NOTE")
@@ -38,8 +65,10 @@ model Content {
 
   node        Node         @relation(fields: [nodeId], references: [id], onDelete: Cascade)
   attachments Attachment[]
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([nodeId, updatedAt])
+  @@index([userId])
 }
 
 model Edge {
@@ -47,13 +76,16 @@ model Edge {
   sourceId  String
   targetId  String
   label     String?
+  userId    String
   createdAt DateTime @default(now())
 
   source Node @relation("SourceEdge", fields: [sourceId], references: [id], onDelete: Cascade)
   target Node @relation("TargetEdge", fields: [targetId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([sourceId, targetId])
   @@unique([sourceId, targetId])
+  @@index([userId])
 }
 
 model Attachment {
@@ -66,4 +98,21 @@ model Attachment {
   createdAt DateTime @default(now())
 
   content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+}
+
+model DailySummary {
+  id           String   @id @default(uuid())
+  date         String
+  userId       String
+  highlights   String   @default("")
+  reflections  String   @default("")
+  improvements String   @default("")
+  mood         Int      @default(3)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([date, userId])
+  @@index([userId])
 }

@@ -44,29 +44,35 @@ export default function NodePage() {
   if (!node) return <div className="flex h-screen items-center justify-center">加载中...</div>
 
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex h-screen" style={{ background: '#FFF8F0' }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 bg-white border-b border-slate-200 flex items-center gap-3 px-4">
+        <header className="h-14 bg-white border-b flex items-center gap-3 px-4" style={{ borderColor: '#F0E6D8' }}>
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 hover:bg-slate-100 rounded"
+            className="lg:hidden p-2 hover:bg-orange-50 rounded"
           >
             <Menu size={20} />
           </button>
           
-          <Link href="/" className="p-2 hover:bg-slate-100 rounded">
+          <Link href="/" className="p-2 hover:bg-orange-50 rounded">
             <ArrowLeft size={20} className="text-slate-600" />
           </Link>
           
-          <h1 className="font-semibold text-slate-800">{node.name}</h1>
+          <h1 className="font-semibold" style={{ color: '#5D4E37' }}>{node.name}</h1>
           
           <div className="flex-1" />
           
+          <img
+            src="/pups/pup-write.svg"
+            alt="写字的小狗"
+            className="hidden sm:block max-w-[32px] h-auto mr-1"
+          />
           <button 
             onClick={() => setShowEditor(!showEditor)}
-            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+            className="p-2 text-white rounded-lg"
+            style={{ background: '#FF6B8A' }}
           >
             <Plus size={20} />
           </button>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db'
 import { z } from 'zod'
+import { getCurrentUser, unauthorizedResponse } from '@/lib/auth-middleware'
 
 const createNodeSchema = z.object({
   name: z.string().min(1),
@@ -10,28 +11,65 @@ const createNodeSchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const parentId = searchParams.get('parentId')
+  const user = await getCurrentUser()
+  if (!user) return unauthorizedResponse()
 
-  const nodes = await prisma.node.findMany({
-    where: parentId ? { parentId } : { parentId: null },
-    orderBy: { sortOrder: 'asc' },
-    include: {
-      children: {
-        orderBy: { sortOrder: 'asc' },
-      },
-    },
-  })
+  try {
+    const { searchParams } = new URL(request.url)
+    const parentId = searchParams.get('parentId')
 
-  return NextResponse.json({ nodes })
+    // Filter nodes by userId and parentId
+    const allNodes = Array.from(db.nodes.values()) as any[]
+    let filtered = allNodes.filter((n: any) => n.userId === user.id)
+
+    if (parentId) {
+      filtered = filtered.filter((n: any) => n.parentId === parentId)
+    } else {
+      filtered = filtered.filter((n: any) => n.parentId === null)
+    }
+
+    // Sort by sortOrder
+    filtered.sort((a: any, b: any) => (a.sortOrder || 0) - (b.sortOrder || 0))
+
+    // Build children for each node
+    const nodesWithChildren = filtered.map((node: any) => ({
+      ...node,
+      children: allNodes
+        .filter((n: any) => n.parentId === node.id)
+        .sort((a: any, b: any) => (a.sortOrder || 0) - (b.sortOrder || 0)),
+    }))
+
+    return NextResponse.json({ nodes: nodesWithChildren })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 }
 
 export async function POST(request: NextRequest) {
+  const user = await getCurrentUser()
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = await request.json()
     const data = createNodeSchema.parse(body)
 
-    const node = await prisma.node.create({ data })
+    const now = new Date().toISOString()
+    const id = crypto.randomUUID()
+    const node = {
+      id,
+      name: data.name,
+      parentId: data.parentId || null,
+      type: data.type || 'TOPIC',
+      color: data.color || null,
+      sortOrder: 0,
+      userId: user.id,
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    db.nodes.set(id, node)
+    db.save()
+
     return NextResponse.json({ node }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {

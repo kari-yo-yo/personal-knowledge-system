@@ -1,13 +1,26 @@
+// @ts-nocheck - This file is kept for reference only (legacy Prisma seed script)
 import { PrismaClient } from '@prisma/client'
+import { hashPassword } from '../lib/auth'
 
 const prisma = new PrismaClient()
 
 async function main() {
+  // Create a default demo user
+  const hashedPassword = hashPassword('demo123')
+
+  const user = await prisma.user.create({
+    data: {
+      username: 'demo',
+      password: hashedPassword,
+    },
+  })
+
   const root = await prisma.node.create({
     data: {
       name: '个人成长总系统',
       type: 'ROOT',
       color: '#4a90d9',
+      userId: user.id,
     },
   })
 
@@ -21,12 +34,13 @@ async function main() {
   ]
 
   for (const sys of systems) {
-    const system = await prisma.node.create({
+    const systemNode = await prisma.node.create({
       data: {
         name: sys.name,
         type: 'SYSTEM',
         parentId: root.id,
         color: sys.color,
+        userId: user.id,
       },
     })
 
@@ -35,14 +49,15 @@ async function main() {
         data: {
           name: sub,
           type: 'SUBSYSTEM',
-          parentId: system.id,
+          parentId: systemNode.id,
           color: sys.color,
+          userId: user.id,
         },
       })
     }
   }
 
-  console.log('Seed data created successfully')
+  console.log('Seed data created successfully. Demo user: demo / demo123')
 }
 
 main()

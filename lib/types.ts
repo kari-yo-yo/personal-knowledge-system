@@ -1,6 +1,47 @@
-import { Node, Content, Edge, Attachment } from '@prisma/client'
+// Inline type definitions (replacing Prisma-generated types)
 
-export type { Node, Content, Edge, Attachment }
+export interface Node {
+  id: string
+  name: string
+  type: string
+  parentId: string | null
+  color: string | null
+  sortOrder: number
+  userId: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Content {
+  id: string
+  nodeId: string
+  userId: string
+  title: string | null
+  body: any
+  type: string
+  tags: any
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Edge {
+  id: string
+  sourceId: string
+  targetId: string
+  label: string | null
+  userId: string
+  createdAt: string
+}
+
+export interface Attachment {
+  id: string
+  contentId: string
+  fileName: string
+  fileUrl: string
+  fileType: string
+  fileSize: number
+  createdAt: string
+}
 
 export interface TreeNode extends Node {
   children?: TreeNode[]
@@ -8,8 +49,8 @@ export interface TreeNode extends Node {
 
 export interface NodeWithRelations extends Node {
   contents: Content[]
-  sourceEdges: Edge[]
-  targetEdges: Edge[]
+  sourceEdges: (Edge & { target?: Node | null })[]
+  targetEdges: (Edge & { source?: Node | null })[]
 }
 
 export interface ContentWithAttachments extends Content {

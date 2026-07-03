@@ -63,9 +63,14 @@ function SearchResults() {
       )}
       
       {results.nodes.length === 0 && results.contents.length === 0 && (
-        <div className="text-center py-12 text-slate-400">
-          <Search size={48} className="mx-auto mb-4 opacity-50" />
+        <div className="text-center py-12" style={{ color: '#8B7355' }}>
+          <img
+            src="/pups/pup-wave.svg"
+            alt="小狗没找到东西"
+            className="puppy-float max-w-[120px] md:max-w-[150px] h-auto mx-auto mb-4"
+          />
           <p>未找到与 &quot;{q}&quot; 相关的内容</p>
+          <p className="text-sm mt-1 opacity-70">小狗帮你搜了，但什么都没找到呢...</p>
         </div>
       )}
     </div>
@@ -76,18 +81,18 @@ export default function SearchPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex h-screen" style={{ background: '#FFF8F0' }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 bg-white border-b border-slate-200 flex items-center gap-3 px-4">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 hover:bg-slate-100 rounded">
+        <header className="h-14 bg-white border-b flex items-center gap-3 px-4" style={{ borderColor: '#F0E6D8' }}>
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 hover:bg-orange-50 rounded">
             <Menu size={20} />
           </button>
-          <Link href="/" className="p-2 hover:bg-slate-100 rounded">
+          <Link href="/" className="p-2 hover:bg-orange-50 rounded">
             <ArrowLeft size={20} className="text-slate-600" />
           </Link>
-          <h1 className="font-semibold text-slate-800">搜索结果</h1>
+          <h1 className="font-semibold" style={{ color: '#5D4E37' }}>搜索结果</h1>
         </header>
         
         <div className="flex-1 overflow-y-auto p-6">

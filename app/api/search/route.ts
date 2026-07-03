@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db'
+import { getCurrentUser, unauthorizedResponse } from '@/lib/auth-middleware'
 
 export async function GET(request: NextRequest) {
+  const user = await getCurrentUser()
+  if (!user) return unauthorizedResponse()
+
   const { searchParams } = new URL(request.url)
   const q = searchParams.get('q')
 
@@ -11,23 +15,22 @@ export async function GET(request: NextRequest) {
 
   const keyword = q.trim()
 
-  const [nodes, contents] = await Promise.all([
-    prisma.node.findMany({
-      where: {
-        name: { contains: keyword },
-      },
-      take: 10,
-    }),
-    prisma.content.findMany({
-      where: {
-        OR: [
-          { title: { contains: keyword } },
-        ],
-      },
-      take: 10,
-      include: { node: true, attachments: true },
-    }),
-  ])
+  const allNodes = Array.from(db.nodes.values()) as any[]
+  const allContents = Array.from(db.contents.values()) as any[]
+  const allAttachments = Array.from(db.attachments.values()) as any[]
+
+  const nodes = allNodes
+    .filter((n: any) => n.userId === user.id && n.name.includes(keyword))
+    .slice(0, 10)
+
+  const contents = allContents
+    .filter((c: any) => c.userId === user.id && (c.title || '').includes(keyword))
+    .slice(0, 10)
+    .map((c: any) => ({
+      ...c,
+      node: db.nodes.get(c.nodeId) || null,
+      attachments: allAttachments.filter((a: any) => a.contentId === c.id),
+    }))
 
   const parsedContents = contents.map((c: any) => ({
     ...c,

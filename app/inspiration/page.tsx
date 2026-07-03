@@ -31,22 +31,31 @@ export default function InspirationPage() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex h-screen" style={{ background: '#FFF8F0' }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 bg-white border-b border-slate-200 flex items-center gap-3 px-4">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 hover:bg-slate-100 rounded">
+        <header className="h-14 bg-white border-b flex items-center gap-3 px-4" style={{ borderColor: '#F0E6D8' }}>
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 hover:bg-orange-50 rounded">
             <Menu size={20} />
           </button>
-          <Link href="/" className="p-2 hover:bg-slate-100 rounded">
+          <Link href="/" className="p-2 hover:bg-orange-50 rounded">
             <ArrowLeft size={20} className="text-slate-600" />
           </Link>
-          <h1 className="font-semibold text-slate-800">灵感速记</h1>
+          <h1 className="font-semibold" style={{ color: '#5D4E37' }}>灵感速记</h1>
         </header>
         
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="w-full max-w-2xl space-y-4">
+            <div className="flex flex-col items-center mb-2">
+              <img
+                src="/pups/pup-think.svg"
+                alt="思考中的小狗"
+                className="puppy-float max-w-[120px] md:max-w-[150px] h-auto"
+              />
+              <p className="text-sm mt-2" style={{ color: '#8B7355' }}>灵感来啦？快记下来，小狗帮你守护每一个想法~</p>
+            </div>
+
             <textarea
               value={text}
               onChange={(e) => {
@@ -54,11 +63,12 @@ export default function InspirationPage() {
                 setShowAI(false)
               }}
               placeholder="记录你的灵感、想法、学习心得..."
-              className="w-full h-40 p-4 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
+              className="w-full h-40 p-4 border rounded-2xl resize-none focus:outline-none focus:ring-2 text-slate-700"
+              style={{ borderColor: '#F0E6D8' }}
             />
             
             <div className="flex items-center justify-between">
-              <div className="text-sm text-slate-500">
+              <div className="text-sm" style={{ color: '#8B7355' }}>
                 {text.length} 字
               </div>
               
@@ -74,17 +84,19 @@ export default function InspirationPage() {
             </div>
 
             {savedTo && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                <p className="text-green-800 font-medium mb-2">灵感已保存！</p>
+              <div className="rounded-2xl border p-4 text-center" style={{ background: '#FFF0E6', borderColor: '#F0E6D8' }}>
+                <p className="font-medium mb-2" style={{ color: '#FF6B8A' }}>灵感已保存！小狗为你开心~</p>
                 <Link
                   href={`/node/${savedTo}`}
-                  className="inline-block px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm"
+                  className="inline-block px-4 py-2 text-white rounded-lg text-sm"
+                  style={{ background: '#FF6B8A' }}
                 >
                   去查看已保存的内容
                 </Link>
                 <button
                   onClick={() => { setSavedTo(''); setText('') }}
-                  className="ml-2 text-sm text-green-700 hover:underline"
+                  className="ml-2 text-sm hover:underline"
+                  style={{ color: '#FF6B8A' }}
                 >
                   继续记录
                 </button>

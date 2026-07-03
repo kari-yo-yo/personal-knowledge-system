@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db'
+import { getCurrentUser, unauthorizedResponse } from '@/lib/auth-middleware'
 
 export async function POST(request: NextRequest) {
+  const user = await getCurrentUser()
+  if (!user) return unauthorizedResponse()
+
   try {
     const { text } = await request.json()
 
@@ -9,12 +13,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 })
     }
 
-    const nodes = await prisma.node.findMany({
-      select: { id: true, name: true },
-    })
+    const nodes = Array.from(db.nodes.values())
+      .filter((n: any) => n.userId === user.id)
+      .map((n: any) => ({ id: n.id, name: n.name }))
 
     const textLower = text.toLowerCase()
-    let bestMatch = null
+    let bestMatch: typeof nodes[0] | null = null
     let bestScore = 0
 
     for (const node of nodes) {
