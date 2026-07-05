@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { z } from 'zod'
-import { getCurrentUser, unauthorizedResponse } from '@/lib/auth-middleware'
 
 const createEdgeSchema = z.object({
   sourceId: z.string().uuid(),
@@ -10,17 +9,27 @@ const createEdgeSchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
-  const user = await getCurrentUser()
-  if (!user) return unauthorizedResponse()
+  const user = { id: 'default-user', username: '我' }
+  await db.load()
 
   const { searchParams } = new URL(request.url)
   const nodeId = searchParams.get('nodeId')
 
+  const allEdges = Array.from(db.edges.values()) as any[]
+
   if (!nodeId) {
-    return NextResponse.json({ error: 'nodeId required' }, { status: 400 })
+    // Return all edges for the user (used by 3D network view)
+    const edges = allEdges
+      .filter((e: any) => e.userId === user.id)
+      .map((e: any) => ({
+        ...e,
+        source: db.nodes.get(e.sourceId) || null,
+        target: db.nodes.get(e.targetId) || null,
+      }))
+    return NextResponse.json({ edges })
   }
 
-  const allEdges = Array.from(db.edges.values()) as any[]
+  // Return edges connected to the specified node
   const edges = allEdges
     .filter((e: any) => e.userId === user.id && (e.sourceId === nodeId || e.targetId === nodeId))
     .map((e: any) => ({
@@ -33,8 +42,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUser()
-  if (!user) return unauthorizedResponse()
+  const user = { id: 'default-user', username: '我' }
+  await db.load()
 
   try {
     const body = await request.json()
@@ -85,8 +94,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const user = await getCurrentUser()
-  if (!user) return unauthorizedResponse()
+  const user = { id: 'default-user', username: '我' }
+  await db.load()
 
   try {
     const { searchParams } = new URL(request.url)
