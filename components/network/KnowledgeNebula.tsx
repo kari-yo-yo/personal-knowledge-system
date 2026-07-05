@@ -33,6 +33,8 @@ interface NebulaNode {
   glowRadius: number
   noteCount: number
   parentId: string | null
+  twinklePhase: number
+  twinkleSpeed: number
 }
 
 interface NebulaEdge {
@@ -49,19 +51,39 @@ interface KnowledgeNebulaProps {
   onNodeDoubleClick?: (nodeId: string) => void
 }
 
-const LEVEL_COLORS = ['#FFD700', '#FF6B8A', '#FFA07A', '#FFDAB9', '#E8D5C4', '#D4C4B0']
-const BG_COLOR = '#FFF8F0'
-const LINE_COLOR_TREE = '#F0E6D8'
-const LINE_COLOR_CUSTOM = '#FF6B8A'
+// ── Galaxy palette ──
+const BG_COLOR = '#050510'
+const NOTE_NONE_COLOR = '#4a4a5a'
+const NOTE_SOME_COLORS = ['#7c3aed', '#8b5cf6', '#a78bfa']
+const NOTE_MANY_COLORS = ['#f59e0b', '#ec4899']
+const LINE_COLOR_TREE_R = 139
+const LINE_COLOR_TREE_G = 92
+const LINE_COLOR_TREE_B = 246
+const LINE_COLOR_CUSTOM_R = 236
+const LINE_COLOR_CUSTOM_G = 72
+const LINE_COLOR_CUSTOM_B = 153
+const STAR_COLORS = [[255, 255, 255], [200, 210, 255], [147, 180, 255], [180, 200, 255], [220, 220, 255]]
+const NEBULA_COLORS = [
+  [80, 40, 180],   // deep purple
+  [40, 60, 180],   // deep blue
+  [120, 30, 140],  // magenta
+  [30, 50, 120],   // navy
+  [60, 20, 100],   // dark violet
+]
+
+function getNodeColor(noteCount: number, level: number, nodeColor: string | null): string {
+  if (nodeColor) return nodeColor
+  if (noteCount === 0) return NOTE_NONE_COLOR
+  if (noteCount >= 4) return NOTE_MANY_COLORS[Math.floor(Math.random() * NOTE_MANY_COLORS.length)]
+  return NOTE_SOME_COLORS[Math.min(level, NOTE_SOME_COLORS.length - 1)]
+}
 
 function flattenNodes(nodeList: NodeData[]): NodeData[] {
   const result: NodeData[] = []
   function collect(list: NodeData[]) {
     list.forEach((n) => {
       result.push(n)
-      if (n.children && n.children.length > 0) {
-        collect(n.children)
-      }
+      if (n.children && n.children.length > 0) collect(n.children)
     })
   }
   collect(nodeList)
@@ -75,11 +97,8 @@ function buildNebulaData(
 ): { nebulaNodes: NebulaNode[]; nebulaEdges: NebulaEdge[] } {
   const allNodes = flattenNodes(nodes)
   const noteCounts = new Map<string, number>()
-  contents.forEach((c) => {
-    noteCounts.set(c.nodeId, (noteCounts.get(c.nodeId) || 0) + 1)
-  })
+  contents.forEach((c) => noteCounts.set(c.nodeId, (noteCounts.get(c.nodeId) || 0) + 1))
 
-  // Build parent->children map
   const childrenMap = new Map<string, string[]>()
   allNodes.forEach((n) => {
     if (n.parentId) {
@@ -89,7 +108,6 @@ function buildNebulaData(
     }
   })
 
-  // Calculate levels
   const levels = new Map<string, number>()
   const root = allNodes.find((n) => !n.parentId)
   if (root) {
@@ -97,72 +115,58 @@ function buildNebulaData(
     while (queue.length > 0) {
       const { id, level } = queue.shift()!
       levels.set(id, level)
-      const children = childrenMap.get(id) || []
-      children.forEach((childId) => queue.push({ id: childId, level: level + 1 }))
+      ;(childrenMap.get(id) || []).forEach((cId) => queue.push({ id: cId, level: level + 1 }))
     }
   }
 
-  // Calculate positions - radial layout with spiral
+  // ── Logarithmic spiral layout ──
   const positions = new Map<string, { x: number; y: number }>()
-  const BASE_RADIUS = 120
-  const RADIUS_STEP = 100
+  const A = 60          // spiral tightness
+  const B = 140         // spiral growth rate
+  const GOLDEN_ANGLE = 2.399963  // ~137.5 degrees in radians
 
   if (root) {
     positions.set(root.id, { x: 0, y: 0 })
 
-    const processed = new Set<string>([root.id])
-    let currentLevel = 0
-
-    while (true) {
-      const levelNodes = allNodes.filter((n) => levels.get(n.id) === currentLevel && processed.has(n.id))
-      if (levelNodes.length === 0) break
-
-      const nextLevelNodes = allNodes.filter((n) => levels.get(n.id) === currentLevel + 1)
-      if (nextLevelNodes.length === 0) break
-
-      const radius = BASE_RADIUS + currentLevel * RADIUS_STEP
-
-      // Group next level nodes by their parent
-      const parentGroups = new Map<string, NodeData[]>()
-      nextLevelNodes.forEach((n) => {
-        const parentId = n.parentId || root.id
-        const group = parentGroups.get(parentId) || []
-        group.push(n)
-        parentGroups.set(parentId, group)
+    // Assign global index to each node in BFS order for golden-angle placement
+    const orderedNodes: NodeData[] = []
+    const bfsQueue = [root]
+    const visited = new Set<string>([root.id])
+    while (bfsQueue.length > 0) {
+      const current = bfsQueue.shift()!
+      orderedNodes.push(current)
+      const children = (childrenMap.get(current.id) || []).map((cId) => allNodes.find((n) => n.id === cId)!).filter(Boolean)
+      children.forEach((child) => {
+        if (!visited.has(child.id)) {
+          visited.add(child.id)
+          bfsQueue.push(child)
+        }
       })
-
-      parentGroups.forEach((group, parentId) => {
-        const parentPos = positions.get(parentId) || { x: 0, y: 0 }
-        const count = group.length
-
-        // Distribute children in an arc around parent
-        const arcWidth = Math.min(Math.PI * 1.2, (Math.PI * 2) / Math.max(parentGroups.size, 1))
-        const baseAngle = Math.atan2(parentPos.y, parentPos.x) + Math.PI
-
-        group.forEach((node, i) => {
-          const angleOffset = count === 1 ? 0 : (i - (count - 1) / 2) * (arcWidth / Math.max(count - 1, 1))
-          const angle = baseAngle + angleOffset + (Math.random() - 0.5) * 0.15
-          const dist = radius + (Math.random() - 0.5) * 30
-          positions.set(node.id, {
-            x: parentPos.x + Math.cos(angle) * dist,
-            y: parentPos.y + Math.sin(angle) * dist,
-          })
-          processed.add(node.id)
-        })
-      })
-
-      currentLevel++
     }
 
-    // Handle orphans (nodes without proper parent in tree)
+    // Place non-root nodes using golden angle spiral
+    let idx = 0
+    orderedNodes.forEach((node) => {
+      if (node.id === root.id) return
+      idx++
+      const level = levels.get(node.id) || 1
+      const r = A + B * Math.log(level + 1)
+      const theta = idx * GOLDEN_ANGLE + level * 0.5
+      // Add slight noise for organic feel
+      const noiseX = (Math.sin(idx * 3.7) * 12) + (Math.cos(idx * 7.3) * 8)
+      const noiseY = (Math.cos(idx * 5.1) * 12) + (Math.sin(idx * 2.9) * 8)
+      positions.set(node.id, {
+        x: Math.cos(theta) * r + noiseX,
+        y: Math.sin(theta) * r + noiseY,
+      })
+    })
+
+    // Orphans
     allNodes.forEach((node) => {
       if (!positions.has(node.id)) {
         const angle = Math.random() * Math.PI * 2
-        const dist = BASE_RADIUS + (currentLevel + 1) * RADIUS_STEP + Math.random() * 80
-        positions.set(node.id, {
-          x: Math.cos(angle) * dist,
-          y: Math.sin(angle) * dist,
-        })
+        const dist = A + B * 3 + Math.random() * 100
+        positions.set(node.id, { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist })
       }
     })
   }
@@ -171,8 +175,15 @@ function buildNebulaData(
     const level = levels.get(node.id) || 0
     const noteCount = noteCounts.get(node.id) || 0
     const pos = positions.get(node.id) || { x: 0, y: 0 }
-    const baseRadius = level === 0 ? 18 : level === 1 ? 12 : level === 2 ? 8 : 6
-    const noteBonus = Math.min(noteCount * 1.5, 8)
+    const childCount = (childrenMap.get(node.id) || []).length
+
+    let baseRadius: number
+    if (noteCount >= 4) baseRadius = 16
+    else if (noteCount >= 1) baseRadius = 10
+    else baseRadius = level === 0 ? 8 : 4
+
+    const noteBonus = Math.min(noteCount * 1.2, 10)
+    const childBonus = Math.min(childCount * 0.8, 6)
 
     return {
       id: node.id,
@@ -180,27 +191,21 @@ function buildNebulaData(
       x: pos.x,
       y: pos.y,
       level,
-      color: node.color || LEVEL_COLORS[Math.min(level, LEVEL_COLORS.length - 1)],
-      radius: baseRadius + noteBonus * 0.5,
-      glowRadius: (baseRadius + noteBonus) * 2.5,
+      color: getNodeColor(noteCount, level, node.color),
+      radius: baseRadius + noteBonus * 0.4 + childBonus * 0.3,
+      glowRadius: (baseRadius + noteBonus + childBonus) * (noteCount >= 4 ? 3 : noteCount >= 1 ? 2.2 : 1.5),
       noteCount,
       parentId: node.parentId,
+      twinklePhase: Math.random() * Math.PI * 2,
+      twinkleSpeed: 0.5 + Math.random() * 1.5,
     }
   })
 
   const nebulaEdges: NebulaEdge[] = []
-
-  // Tree edges
-  allNodes.forEach((node) => {
-    if (node.parentId) {
-      nebulaEdges.push({ sourceId: node.parentId, targetId: node.id, type: 'tree' })
-    }
+  allNodes.forEach((n) => {
+    if (n.parentId) nebulaEdges.push({ sourceId: n.parentId, targetId: n.id, type: 'tree' })
   })
-
-  // Custom edges
-  edges.forEach((edge) => {
-    nebulaEdges.push({ sourceId: edge.sourceId, targetId: edge.targetId, type: 'custom' })
-  })
+  edges.forEach((e) => nebulaEdges.push({ sourceId: e.sourceId, targetId: e.targetId, type: 'custom' }))
 
   return { nebulaNodes, nebulaEdges }
 }
@@ -215,7 +220,6 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
 
   useEffect(() => {
     dataRef.current = buildNebulaData(nodes, contents, edges)
-    // Trigger redraw if p5 instance exists
     if (p5Ref.current) {
       p5Ref.current.loop()
       p5Ref.current.redraw()
@@ -238,21 +242,37 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
     let selectedNodeId: string | null = null
     let lastClickTime = 0
     let lastClickNode: string | null = null
-    let backgroundStars: { x: number; y: number; size: number; alpha: number }[] = []
     let autoRotate = false
-    let autoRotateAngle = 0
 
-    const MIN_ZOOM = 0.15
-    const MAX_ZOOM = 3.5
+    // Background stars (fixed parallax layer)
+    let bgStars: { x: number; y: number; size: number; baseAlpha: number; speed: number; colorIdx: number }[] = []
+    // Nebula blobs
+    let nebulaBlobs: { x: number; y: number; radius: number; colorIdx: number; driftX: number; driftY: number }[] = []
 
-    function generateStars() {
-      backgroundStars = []
-      for (let i = 0; i < 150; i++) {
-        backgroundStars.push({
-          x: p.random(-2000, 2000),
-          y: p.random(-2000, 2000),
-          size: p.random(0.5, 2.5),
-          alpha: p.random(30, 120),
+    const MIN_ZOOM = 0.1
+    const MAX_ZOOM = 4.0
+
+    function generateBackground() {
+      bgStars = []
+      for (let i = 0; i < 400; i++) {
+        bgStars.push({
+          x: p.random(-3000, 3000),
+          y: p.random(-3000, 3000),
+          size: p.random(0.4, 2.8),
+          baseAlpha: p.random(60, 220),
+          speed: p.random(0.3, 1.2),
+          colorIdx: Math.floor(p.random() * STAR_COLORS.length),
+        })
+      }
+      nebulaBlobs = []
+      for (let i = 0; i < 5; i++) {
+        nebulaBlobs.push({
+          x: p.random(-800, 800),
+          y: p.random(-800, 800),
+          radius: p.random(300, 600),
+          colorIdx: i % NEBULA_COLORS.length,
+          driftX: (p.random() - 0.5) * 0.02,
+          driftY: (p.random() - 0.5) * 0.02,
         })
       }
     }
@@ -274,51 +294,54 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
     function getNodeAt(x: number, y: number): NebulaNode | null {
       const world = screenToWorld(x, y)
       const { nebulaNodes } = dataRef.current
-      // Check in reverse order (top-most first)
       for (let i = nebulaNodes.length - 1; i >= 0; i--) {
         const node = nebulaNodes[i]
         const dx = world.x - node.x
         const dy = world.y - node.y
-        const hitRadius = node.radius + 8
-        if (dx * dx + dy * dy < hitRadius * hitRadius) {
-          return node
-        }
+        const hitRadius = node.radius + 10
+        if (dx * dx + dy * dy < hitRadius * hitRadius) return node
       }
       return null
     }
 
-    function drawGlow(x: number, y: number, radius: number, color: string, alpha: number) {
-      const steps = 8
+    function drawGlow(x: number, y: number, radius: number, r: number, g: number, b: number, baseAlpha: number, twinkle: number) {
+      const steps = 10
       for (let i = steps; i >= 0; i--) {
         const t = i / steps
-        const r = radius * (0.3 + t * 0.7)
-        const a = alpha * (1 - t) * 0.4
+        const rad = radius * (0.2 + t * 0.8)
+        const a = baseAlpha * (1 - t) * 0.35 * twinkle
         p.noStroke()
-        const c = p.color(color)
-        p.fill(p.red(c), p.green(c), p.blue(c), a)
-        p.circle(x, y, r * 2)
+        p.fill(r, g, b, a)
+        p.circle(x, y, rad * 2)
       }
     }
 
-    function drawBezierConnection(
-      x1: number,
-      y1: number,
-      x2: number,
-      y2: number,
-      color: string,
-      alpha: number,
-      pulse = false
-    ) {
+    function drawPlanetRing(x: number, y: number, nodeR: number, time: number) {
+      const ringRadius = nodeR * 2.2
+      const tilt = 0.35
+      p.push()
+      p.translate(x, y)
+      p.rotate(time * 0.4)
+      p.noFill()
+      p.strokeWeight(1.5)
+      for (let i = 0; i < 3; i++) {
+        const rr = ringRadius + i * 3
+        const alpha = 180 - i * 50
+        p.stroke(139, 92, 246, alpha)
+        p.ellipse(0, 0, rr * 2, rr * 2 * tilt)
+      }
+      p.pop()
+    }
+
+    function drawConnection(x1: number, y1: number, x2: number, y2: number, r: number, g: number, b: number, alpha: number, pulse = false) {
       const midX = (x1 + x2) / 2
       const midY = (y1 + y2) / 2
-      const offset = 20 * zoom
+      const offset = 15 * zoom
 
       p.noFill()
-      p.strokeWeight(pulse ? 1.5 : 1)
-      const c = p.color(color)
-      const pulseAlpha = pulse ? alpha * (0.6 + 0.4 * Math.sin(p.millis() * 0.002)) : alpha
-      p.stroke(p.red(c), p.green(c), p.blue(c), pulseAlpha)
-
+      p.strokeWeight(pulse ? 1.2 : 0.8)
+      const pulseAlpha = pulse ? alpha * (0.5 + 0.5 * Math.sin(p.millis() * 0.0015)) : alpha
+      p.stroke(r, g, b, pulseAlpha)
       p.bezier(x1, y1, midX, midY - offset, midX, midY - offset, x2, y2)
     }
 
@@ -330,9 +353,8 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
       const canvas = p.createCanvas(canvasWidth, canvasHeight)
       canvas.parent(container)
       p.pixelDensity(Math.min(window.devicePixelRatio, 2))
-      generateStars()
+      generateBackground()
 
-      // Center camera on root node
       const { nebulaNodes } = dataRef.current
       const root = nebulaNodes.find((n) => n.level === 0)
       if (root) {
@@ -342,44 +364,65 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
     }
 
     p.draw = () => {
-      // Smooth zoom
-      zoom += (targetZoom - zoom) * 0.15
+      const time = p.millis() * 0.001
+
+      zoom += (targetZoom - zoom) * 0.12
 
       // Auto rotate
       if (autoRotate && !isDragging) {
-        autoRotateAngle += 0.0003
         const { nebulaNodes } = dataRef.current
         const root = nebulaNodes.find((n) => n.level === 0)
         if (root) {
-          const cx = root.x
-          const cy = root.y
-          const cos = Math.cos(0.0003)
-          const sin = Math.sin(0.0003)
-          const dx = cameraX - cx
-          const dy = cameraY - cy
-          cameraX = cx + dx * cos - dy * sin
-          cameraY = cy + dx * sin + dy * cos
+          const cos = Math.cos(0.0004)
+          const sin = Math.sin(0.0004)
+          const dx = cameraX - root.x
+          const dy = cameraY - root.y
+          cameraX = root.x + dx * cos - dy * sin
+          cameraY = root.y + dx * sin + dy * cos
         }
       }
 
-      // Background
-      p.background(BG_COLOR)
+      // ── Deep space background ──
+      p.background(5, 5, 16)
 
-      // Draw background stars
+      // ── Nebula fog layer (parallax 0.3) ──
       p.noStroke()
-      backgroundStars.forEach((star) => {
-        const screen = worldToScreen(star.x, star.y)
-        if (screen.x < -10 || screen.x > canvasWidth + 10 || screen.y < -10 || screen.y > canvasHeight + 10) return
-        p.fill(200, 180, 160, star.alpha)
-        p.circle(screen.x, screen.y, star.size * zoom)
+      nebulaBlobs.forEach((blob) => {
+        blob.x += blob.driftX
+        blob.y += blob.driftY
+        const sx = (blob.x - cameraX * 0.3) * zoom + canvasWidth / 2
+        const sy = (blob.y - cameraY * 0.3) * zoom + canvasHeight / 2
+        const sr = blob.radius * zoom
+        const nc = NEBULA_COLORS[blob.colorIdx]
+        // Multiple overlapping circles for softness
+        for (let j = 3; j >= 0; j--) {
+          const t = j / 3
+          const r = sr * (0.5 + t * 0.5)
+          const a = 8 * (1 - t)
+          p.fill(nc[0], nc[1], nc[2], a)
+          p.circle(sx, sy, r * 2)
+        }
+      })
+
+      // ── Background stars (parallax 0.5) with twinkle ──
+      p.noStroke()
+      bgStars.forEach((star) => {
+        const parallax = 0.5
+        const sx = (star.x - cameraX * parallax) * zoom * 0.4 + canvasWidth / 2
+        const sy = (star.y - cameraY * parallax) * zoom * 0.4 + canvasHeight / 2
+        if (sx < -5 || sx > canvasWidth + 5 || sy < -5 || sy > canvasHeight + 5) return
+
+        const twinkle = 0.5 + 0.5 * Math.sin(time * star.speed + star.x)
+        const alpha = star.baseAlpha * twinkle
+        const sc = STAR_COLORS[star.colorIdx]
+        p.fill(sc[0], sc[1], sc[2], alpha)
+        p.circle(sx, sy, star.size)
       })
 
       const { nebulaNodes, nebulaEdges } = dataRef.current
-
-      // Get selected node
       const selectedNode = nebulaNodes.find((n) => n.id === selectedNodeId)
 
-      // Draw edges
+      // ── Draw connections ──
       nebulaEdges.forEach((edge) => {
         const source = nebulaNodes.find((n) => n.id === edge.sourceId)
         const target = nebulaNodes.find((n) => n.id === edge.targetId)
@@ -388,158 +431,128 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
         const s1 = worldToScreen(source.x, source.y)
         const s2 = worldToScreen(target.x, target.y)
 
-        // Skip if both off-screen
-        const margin = 50
+        const margin = 60
         if (
           (s1.x < -margin && s2.x < -margin) ||
           (s1.x > canvasWidth + margin && s2.x > canvasWidth + margin) ||
           (s1.y < -margin && s2.y < -margin) ||
           (s1.y > canvasHeight + margin && s2.y > canvasHeight + margin)
-        ) {
-          return
-        }
+        ) return
 
-        const isHighlighted =
-          selectedNode && (edge.sourceId === selectedNode.id || edge.targetId === selectedNode.id)
+        const isHighlighted = selectedNode && (edge.sourceId === selectedNode.id || edge.targetId === selectedNode.id)
         const isDimmed = selectedNode && !isHighlighted
 
         if (edge.type === 'tree') {
-          drawBezierConnection(
-            s1.x,
-            s1.y,
-            s2.x,
-            s2.y,
-            LINE_COLOR_TREE,
-            isDimmed ? 30 : isHighlighted ? 180 : 100
-          )
+          const alpha = isDimmed ? 15 : isHighlighted ? 120 : 50
+          drawConnection(s1.x, s1.y, s2.x, s2.y, LINE_COLOR_TREE_R, LINE_COLOR_TREE_G, LINE_COLOR_TREE_B, alpha)
         } else {
-          drawBezierConnection(
-            s1.x,
-            s1.y,
-            s2.x,
-            s2.y,
-            LINE_COLOR_CUSTOM,
-            isDimmed ? 25 : isHighlighted ? 200 : 120,
-            !isDimmed
-          )
+          drawConnection(s1.x, s1.y, s2.x, s2.y, LINE_COLOR_CUSTOM_R, LINE_COLOR_CUSTOM_G, LINE_COLOR_CUSTOM_B,
+            isDimmed ? 15 : isHighlighted ? 150 : 60, !isDimmed)
         }
       })
 
-      // Draw nodes
+      // ── Draw nodes ──
       nebulaNodes.forEach((node) => {
         const screen = worldToScreen(node.x, node.y)
-
-        // Culling
-        if (screen.x < -100 || screen.x > canvasWidth + 100 || screen.y < -100 || screen.y > canvasHeight + 100) {
-          return
-        }
+        if (screen.x < -120 || screen.x > canvasWidth + 120 || screen.y < -120 || screen.y > canvasHeight + 120) return
 
         const isHovered = hoveredNode?.id === node.id
         const isSelected = selectedNodeId === node.id
-        const isConnected =
-          selectedNode &&
-          (selectedNode.id === node.id ||
-            nebulaEdges.some(
-              (e) =>
-                (e.sourceId === selectedNode.id && e.targetId === node.id) ||
-                (e.targetId === selectedNode.id && e.sourceId === node.id)
-            ))
+        const isConnected = selectedNode && (
+          selectedNode.id === node.id ||
+          nebulaEdges.some((e) =>
+            (e.sourceId === selectedNode.id && e.targetId === node.id) ||
+            (e.targetId === selectedNode.id && e.sourceId === node.id)
+          )
+        )
         const isDimmed = selectedNode && !isConnected
 
-        const glowR = node.glowRadius * zoom * (isHovered || isSelected ? 1.3 : 1)
-        const nodeR = node.radius * zoom * (isHovered ? 1.15 : 1)
+        const twinkle = 0.7 + 0.3 * Math.sin(time * node.twinkleSpeed + node.twinklePhase)
+        const scale = (isHovered || isSelected) ? 1.4 : 1
+        const glowR = node.glowRadius * zoom * scale
+        const nodeR = node.radius * zoom * scale
+
+        const c = p.color(node.color)
+        const cr = p.red(c)
+        const cg = p.green(c)
+        const cb = p.blue(c)
 
         // Glow
-        if (!isDimmed || isHovered) {
-          drawGlow(
-            screen.x,
-            screen.y,
-            glowR,
-            node.color,
-            isDimmed ? 40 : isHovered || isSelected ? 180 : 100
-          )
-        }
+        const glowAlpha = isDimmed ? 20 : isSelected ? 200 : isHovered ? 160 : 80 * twinkle
+        drawGlow(screen.x, screen.y, glowR, cr, cg, cb, glowAlpha, twinkle)
 
-        // Core
+        // Core sphere
         p.noStroke()
-        const c = p.color(node.color)
         if (isDimmed) {
-          p.fill(p.red(c), p.green(c), p.blue(c), 60)
+          p.fill(cr, cg, cb, 40)
         } else {
-          p.fill(c)
+          p.fill(cr, cg, cb, 230 * twinkle)
         }
         p.circle(screen.x, screen.y, nodeR * 2)
 
-        // Inner highlight
-        if (!isDimmed) {
-          p.fill(255, 255, 255, isHovered ? 120 : 60)
-          p.circle(screen.x - nodeR * 0.2, screen.y - nodeR * 0.2, nodeR * 0.8)
+        // Inner highlight (sphere illusion)
+        if (!isDimmed && nodeR > 3) {
+          p.fill(255, 255, 255, (isHovered ? 100 : 50) * twinkle)
+          p.circle(screen.x - nodeR * 0.25, screen.y - nodeR * 0.25, nodeR * 0.7)
         }
 
-        // Selection ring
+        // Planet ring for selected node
         if (isSelected) {
-          p.noFill()
-          p.stroke('#FF6B8A')
-          p.strokeWeight(2)
-          p.circle(screen.x, screen.y, (nodeR + 6) * 2)
+          drawPlanetRing(screen.x, screen.y, nodeR, time)
         }
 
         // Label
-        if (zoom > 0.4 || isHovered || isSelected) {
-          const labelAlpha = isDimmed ? 80 : isHovered || isSelected ? 255 : Math.min(255, (zoom - 0.3) * 500)
-          if (labelAlpha > 20) {
+        if (zoom > 0.35 || isHovered || isSelected) {
+          const labelAlpha = isDimmed ? 40 : isHovered || isSelected ? 255 : Math.min(255, (zoom - 0.25) * 400)
+          if (labelAlpha > 15) {
             p.noStroke()
-            p.fill(93, 78, 55, labelAlpha)
+            p.fill(255, 255, 255, labelAlpha)
             p.textAlign(p.CENTER, p.TOP)
             p.textSize(Math.max(10, 12 * zoom))
             p.textFont('sans-serif')
-            p.text(node.name, screen.x, screen.y + nodeR + 6)
+            p.text(node.name, screen.x, screen.y + nodeR + 8)
 
             if (node.noteCount > 0) {
-              p.fill(255, 107, 138, labelAlpha)
+              p.fill(139, 92, 246, labelAlpha * 0.9)
               p.textSize(Math.max(9, 10 * zoom))
-              p.text(`${node.noteCount} 笔记`, screen.x, screen.y + nodeR + 6 + Math.max(12, 14 * zoom))
+              p.text(`${node.noteCount} 笔记`, screen.x, screen.y + nodeR + 8 + Math.max(13, 15 * zoom))
             }
           }
         }
       })
 
-      // Tooltip for hovered node
+      // ── Tooltip ──
       if (hoveredNode && !isDragging) {
         const screen = worldToScreen(hoveredNode.x, hoveredNode.y)
-        const tooltipX = screen.x + 20
-        const tooltipY = screen.y - 20
-        const padding = 10
-        const lineHeight = 18
+        const tooltipX = screen.x + 25
+        const tooltipY = screen.y - 25
+        const padding = 12
+        const lineHeight = 20
 
         p.textAlign(p.LEFT, p.TOP)
-        p.textSize(12)
+        p.textSize(13)
         const nameWidth = p.textWidth(hoveredNode.name)
-        const noteText = hoveredNode.noteCount > 0 ? `${hoveredNode.noteCount} 条笔记` : ''
-        const noteWidth = noteText ? p.textWidth(noteText) : 0
-        const maxWidth = Math.max(nameWidth, noteWidth)
-        const boxW = maxWidth + padding * 2
-        const boxH = noteText ? lineHeight * 2 + padding * 2 : lineHeight + padding * 2
+        const noteText = hoveredNode.noteCount > 0 ? `${hoveredNode.noteCount} 条笔记` : '暂无笔记'
+        const noteWidth = p.textWidth(noteText)
+        const boxW = Math.max(nameWidth, noteWidth) + padding * 2
+        const boxH = lineHeight * 2 + padding * 2
 
-        // Tooltip background
-        p.fill(255, 248, 240, 230)
-        p.stroke(240, 230, 216)
+        p.fill(10, 10, 30, 220)
+        p.stroke(139, 92, 246, 100)
         p.strokeWeight(1)
-        p.rect(tooltipX, tooltipY, boxW, boxH, 6)
+        p.rect(tooltipX, tooltipY, boxW, boxH, 8)
 
-        // Tooltip text
         p.noStroke()
-        p.fill(93, 78, 55)
+        p.fill(255, 255, 255, 240)
         p.text(hoveredNode.name, tooltipX + padding, tooltipY + padding)
-        if (noteText) {
-          p.fill(255, 107, 138)
-          p.textSize(11)
-          p.text(noteText, tooltipX + padding, tooltipY + padding + lineHeight)
-        }
+        p.fill(139, 92, 246, 200)
+        p.textSize(11)
+        p.text(noteText, tooltipX + padding, tooltipY + padding + lineHeight)
       }
 
-      // Stop looping if idle (save CPU)
-      if (!isDragging && !autoRotate && Math.abs(targetZoom - zoom) < 0.001 && !hoveredNode) {
+      // Always loop for twinkle animation
+      // Only stop if truly idle AND user has few nodes (perf optimization)
+      if (nebulaNodes.length > 80 && !isDragging && !autoRotate && Math.abs(targetZoom - zoom) < 0.001 && !hoveredNode && !selectedNodeId) {
         p.noLoop()
       }
     }
@@ -550,7 +563,6 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
       if (node) {
         const now = Date.now()
         if (lastClickNode === node.id && now - lastClickTime < 350) {
-          // Double click
           callbacksRef.current.onNodeDoubleClick?.(node.id)
           lastClickTime = 0
           lastClickNode = null
@@ -588,10 +600,7 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
 
     p.mouseMoved = () => {
       if (p.mouseX < 0 || p.mouseX > canvasWidth || p.mouseY < 0 || p.mouseY > canvasHeight) {
-        if (hoveredNode) {
-          hoveredNode = null
-          p.loop()
-        }
+        if (hoveredNode) { hoveredNode = null; p.loop() }
         return
       }
       const node = getNodeAt(p.mouseX, p.mouseY)
@@ -606,17 +615,14 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
 
     p.mouseWheel = (event: WheelEvent) => {
       if (p.mouseX < 0 || p.mouseX > canvasWidth || p.mouseY < 0 || p.mouseY > canvasHeight) return
-
       const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1
       const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoom * zoomFactor))
-
       if (newZoom !== targetZoom) {
-        const worldBefore = screenToWorld(p.mouseX, p.mouseY)
+        const wb = screenToWorld(p.mouseX, p.mouseY)
         targetZoom = newZoom
-        // Adjust camera to zoom towards mouse
-        const worldAfter = screenToWorld(p.mouseX, p.mouseY)
-        cameraX += worldBefore.x - worldAfter.x
-        cameraY += worldBefore.y - worldAfter.y
+        const wa = screenToWorld(p.mouseX, p.mouseY)
+        cameraX += wb.x - wa.x
+        cameraY += wb.y - wa.y
         p.loop()
       }
       return false
@@ -631,14 +637,10 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
       p.loop()
     }
 
-    // Expose reset function
     ;(p as any).resetView = () => {
       const { nebulaNodes } = dataRef.current
       const root = nebulaNodes.find((n) => n.level === 0)
-      if (root) {
-        cameraX = root.x
-        cameraY = root.y
-      }
+      if (root) { cameraX = root.x; cameraY = root.y }
       targetZoom = 1
       zoom = 1
       selectedNodeId = null
@@ -653,17 +655,11 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
 
   useEffect(() => {
     if (!containerRef.current) return
-
     const instance = new p5(sketch, containerRef.current)
     p5Ref.current = instance
 
-    // Listen for reset and auto-rotate events from wrapper
-    const handleReset = () => {
-      ;(instance as any).resetView?.()
-    }
-    const handleAutoRotate = (e: CustomEvent) => {
-      ;(instance as any).setAutoRotate?.(e.detail)
-    }
+    const handleReset = () => { (instance as any).resetView?.() }
+    const handleAutoRotate = (e: CustomEvent) => { (instance as any).setAutoRotate?.(e.detail) }
     window.addEventListener('nebula-reset', handleReset)
     window.addEventListener('nebula-autorotate', handleAutoRotate as EventListener)
 
