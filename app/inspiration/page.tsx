@@ -2,13 +2,15 @@
 
 import { useState } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { GlassCard } from '@/components/theme/GlassCard'
 import { AIClassifyPanel } from '@/components/ai/AIClassifyPanel'
 import { Menu, ArrowLeft, Lightbulb, Target, BookOpen, AlertTriangle, Heart, CheckCircle, Sparkles, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
 interface ExpandPlan {
   vision: string
-  steps: { phase: string; title: string; description: string; duration: string }[]
+  analysis?: string
+  steps: { phase: string; title: string; description: string; duration: string; tasks?: string[]; expectedOutcome?: string }[]
   skillsNeeded: string[]
   resources: string[]
   milestones: string[]
@@ -107,29 +109,45 @@ export default function InspirationPage() {
   }
 
   return (
-    <div className="flex h-screen" style={{ background: '#FFF8F0' }}>
+    <div className="flex h-screen" style={{ background: 'var(--bg-deep)' }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 bg-white border-b flex items-center gap-3 px-4" style={{ borderColor: '#F0E6D8' }}>
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 hover:bg-orange-50 rounded">
+      <main className="flex-1 flex flex-col min-w-0 relative z-10">
+        <header
+          className="h-14 border-b flex items-center gap-3 px-4 backdrop-blur-xl"
+          style={{
+            background: 'rgba(0, 0, 0, 0.4)',
+            borderColor: 'var(--glass-border)',
+          }}
+        >
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden p-2 rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+          >
             <Menu size={20} />
           </button>
-          <Link href="/" className="p-2 hover:bg-orange-50 rounded">
-            <ArrowLeft size={20} className="text-slate-600" />
+          <Link
+            href="/"
+            className="p-2 rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <ArrowLeft size={20} />
           </Link>
-          <h1 className="font-semibold" style={{ color: '#5D4E37' }}>灵感速记</h1>
+          <h1 className="font-semibold" style={{ color: 'var(--text-primary)' }}>灵感速记</h1>
         </header>
 
         <div className="flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto">
-          <div className="w-full max-w-2xl space-y-4">
+          <div className="w-full max-w-2xl space-y-4 relative z-10">
             <div className="flex flex-col items-center mb-2">
               <img
                 src="/pups/pup-think.svg"
                 alt="思考中的小狗"
-                className="puppy-float max-w-[120px] md:max-w-[150px] h-auto"
+                className="puppy-float puppy-dark max-w-[120px] md:max-w-[150px] h-auto"
               />
-              <p className="text-sm mt-2" style={{ color: '#8B7355' }}>灵感来啦？快记下来，小狗帮你守护每一个想法~</p>
+              <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>
+                灵感来啦？快记下来，小狗帮你守护每一个想法~
+              </p>
             </div>
 
             <textarea
@@ -139,12 +157,12 @@ export default function InspirationPage() {
                 setShowAI(false)
               }}
               placeholder="记录你的灵感、想法、学习心得..."
-              className="w-full h-40 p-4 border rounded-2xl resize-none focus:outline-none focus:ring-2 text-slate-700"
-              style={{ borderColor: '#F0E6D8' }}
+              className="w-full h-40 p-4 border-2 border-dashed rounded-2xl resize-none star-input"
+              style={{ borderStyle: 'dashed' }}
             />
 
             <div className="flex items-center justify-between">
-              <div className="text-sm" style={{ color: '#8B7355' }}>
+              <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
                 {text.length} 字
               </div>
 
@@ -159,8 +177,7 @@ export default function InspirationPage() {
                     <button
                       onClick={handleExpand}
                       disabled={expandLoading}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-white disabled:opacity-50 transition-colors hover:opacity-90"
-                      style={{ background: '#FF8C42' }}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-white disabled:opacity-50 transition-colors glow-btn"
                     >
                       {expandLoading ? <Loader2 size={16} className="animate-spin" /> : <Lightbulb size={16} />}
                       {expandLoading ? '拓展中...' : 'AI 帮我拓展'}
@@ -171,39 +188,76 @@ export default function InspirationPage() {
             </div>
 
             {expandPlan && (
-              <div className="w-full rounded-2xl border p-6" style={{ background: '#FFF5EB', borderColor: '#F0E6D8' }}>
+              <div
+                className="w-full rounded-2xl border p-6"
+                style={{ background: 'var(--glass-bg)', borderColor: 'var(--glass-border)' }}
+              >
                 {/* Vision */}
-                <div className="flex items-start gap-3 mb-6 p-4 rounded-xl" style={{ background: '#FFEEE0' }}>
-                  <Target size={24} style={{ color: '#FF8C42', flexShrink: 0 }} />
+                <div className="flex items-start gap-3 mb-4 p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                  <Target size={24} style={{ color: 'var(--accent-warm)', flexShrink: 0 }} />
                   <div>
-                    <div className="text-sm font-medium mb-1" style={{ color: '#8B7355' }}>愿景</div>
-                    <div className="text-lg font-semibold" style={{ color: '#5D4E37' }}>{expandPlan.vision}</div>
+                    <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>愿景</div>
+                    <div className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{expandPlan.vision}</div>
                   </div>
                 </div>
 
+                {/* Analysis */}
+                {expandPlan.analysis && (
+                  <div className="flex items-start gap-3 mb-6 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)' }}>
+                    <Sparkles size={20} style={{ color: 'var(--accent-warm)', flexShrink: 0 }} />
+                    <div>
+                      <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>AI 分析</div>
+                      <div className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>{expandPlan.analysis}</div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Steps Timeline */}
                 <div className="mb-6">
-                  <div className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: '#8B7355' }}>
+                  <div className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
                     <BookOpen size={16} /> 执行路径
                   </div>
                   <div className="space-y-0">
                     {expandPlan.steps.map((step, index) => (
                       <div key={index} className="flex gap-3">
                         <div className="flex flex-col items-center">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ background: '#FF8C42' }}>
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                            style={{ background: 'var(--accent-warm)' }}
+                          >
                             {index + 1}
                           </div>
                           {index < expandPlan.steps.length - 1 && (
-                            <div className="w-0.5 flex-1 min-h-[2rem] mt-1" style={{ background: '#F0E6D8' }} />
+                            <div className="w-0.5 flex-1 min-h-[2rem] mt-1" style={{ background: 'var(--glass-border)' }} />
                           )}
                         </div>
                         <div className="flex-1 pb-5">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="font-semibold text-sm" style={{ color: '#5D4E37' }}>{step.title}</span>
-                            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#F0E6D8', color: '#8B7355' }}>{step.duration}</span>
+                            <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{step.title}</span>
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full"
+                              style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}
+                            >
+                              {step.duration}
+                            </span>
                           </div>
-                          <div className="text-xs font-medium mb-1" style={{ color: '#FF8C42' }}>{step.phase}</div>
-                          <div className="text-sm" style={{ color: '#8B7355' }}>{step.description}</div>
+                          <div className="text-xs font-medium mb-1" style={{ color: 'var(--accent-warm)' }}>{step.phase}</div>
+                          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>{step.description}</div>
+                          {step.tasks && step.tasks.length > 0 && (
+                            <div className="mt-2 pl-1">
+                              {step.tasks.map((task, ti) => (
+                                <div key={ti} className="text-xs flex items-start gap-2 mb-1" style={{ color: 'var(--text-primary)' }}>
+                                  <span style={{ color: 'var(--accent-warm)' }}>&#9679;</span>
+                                  {task}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {step.expectedOutcome && (
+                            <div className="mt-2 text-xs px-2 py-1 rounded" style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'rgba(134, 239, 172, 0.9)' }}>
+                              阶段目标：{step.expectedOutcome}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -212,10 +266,10 @@ export default function InspirationPage() {
 
                 {/* Skills */}
                 <div className="mb-6">
-                  <div className="text-sm font-medium mb-2" style={{ color: '#8B7355' }}>所需技能</div>
+                  <div className="text-sm font-medium mb-2" style={{ color: 'var(--text-muted)' }}>所需技能</div>
                   <div className="flex flex-wrap gap-2">
                     {expandPlan.skillsNeeded.map((skill, i) => (
-                      <span key={i} className="px-3 py-1 rounded-full text-xs font-medium" style={{ background: '#FFE4D6', color: '#FF8C42' }}>
+                      <span key={i} className="px-3 py-1 rounded-full text-xs font-medium" style={{ background: 'rgba(255, 140, 66, 0.12)', color: 'var(--accent-warm)' }}>
                         {skill}
                       </span>
                     ))}
@@ -224,11 +278,11 @@ export default function InspirationPage() {
 
                 {/* Resources */}
                 <div className="mb-6">
-                  <div className="text-sm font-medium mb-2" style={{ color: '#8B7355' }}>所需资源</div>
+                  <div className="text-sm font-medium mb-2" style={{ color: 'var(--text-muted)' }}>所需资源</div>
                   <ul className="space-y-1">
                     {expandPlan.resources.map((res, i) => (
-                      <li key={i} className="text-sm flex items-center gap-2" style={{ color: '#5D4E37' }}>
-                        <span style={{ color: '#FF8C42' }}>•</span> {res}
+                      <li key={i} className="text-sm flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                        <span style={{ color: 'var(--accent-warm)' }}>•</span> {res}
                       </li>
                     ))}
                   </ul>
@@ -236,10 +290,10 @@ export default function InspirationPage() {
 
                 {/* Milestones */}
                 <div className="mb-6">
-                  <div className="text-sm font-medium mb-2" style={{ color: '#8B7355' }}>里程碑</div>
+                  <div className="text-sm font-medium mb-2" style={{ color: 'var(--text-muted)' }}>里程碑</div>
                   <div className="flex flex-wrap gap-2">
                     {expandPlan.milestones.map((m, i) => (
-                      <span key={i} className="px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1" style={{ background: '#E8F5E9', color: '#4CAF50' }}>
+                      <span key={i} className="px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1" style={{ background: 'rgba(34, 197, 94, 0.12)', color: 'rgba(134, 239, 172, 0.9)' }}>
                         <CheckCircle size={12} />
                         {m}
                       </span>
@@ -248,23 +302,23 @@ export default function InspirationPage() {
                 </div>
 
                 {/* Risks */}
-                <div className="mb-6 p-4 rounded-xl" style={{ background: '#FFF8E1' }}>
-                  <div className="text-sm font-medium mb-2 flex items-center gap-2" style={{ color: '#8B7355' }}>
-                    <AlertTriangle size={16} style={{ color: '#FFB300' }} /> 可能的风险
+                <div className="mb-6 p-4 rounded-xl" style={{ background: 'rgba(255, 179, 0, 0.08)' }}>
+                  <div className="text-sm font-medium mb-2 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+                    <AlertTriangle size={16} style={{ color: 'rgba(253, 224, 71, 0.9)' }} /> 可能的风险
                   </div>
                   <ul className="space-y-1">
                     {expandPlan.risks.map((risk, i) => (
-                      <li key={i} className="text-sm flex items-start gap-2" style={{ color: '#5D4E37' }}>
-                        <span style={{ color: '#FFB300' }}>•</span> {risk}
+                      <li key={i} className="text-sm flex items-start gap-2" style={{ color: 'var(--text-primary)' }}>
+                        <span style={{ color: 'rgba(253, 224, 71, 0.9)' }}>•</span> {risk}
                       </li>
                     ))}
                   </ul>
                 </div>
 
                 {/* Tips */}
-                <div className="mb-6 p-4 rounded-xl flex items-start gap-3" style={{ background: '#FFEEE0' }}>
-                  <Heart size={20} style={{ color: '#FF6B8A', flexShrink: 0 }} />
-                  <div className="text-sm font-medium" style={{ color: '#5D4E37' }}>{expandPlan.tips}</div>
+                <div className="mb-6 p-4 rounded-xl flex items-start gap-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                  <Heart size={20} style={{ color: 'var(--accent-warm)', flexShrink: 0 }} />
+                  <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{expandPlan.tips}</div>
                 </div>
 
                 {/* Actions */}
@@ -272,14 +326,13 @@ export default function InspirationPage() {
                   {!expandSaved ? (
                     <button
                       onClick={handleSavePlan}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm transition-colors hover:opacity-90"
-                      style={{ background: '#FF6B8A' }}
+                      className="glow-btn flex items-center gap-2 px-4 py-2 text-sm"
                     >
                       <Sparkles size={14} />
                       保存计划到「{expandPlan.suggestedNodeName}」
                     </button>
                   ) : (
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm" style={{ background: '#E8F5E9', color: '#4CAF50' }}>
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm" style={{ background: 'rgba(34, 197, 94, 0.15)', color: 'rgba(134, 239, 172, 0.9)' }}>
                       <CheckCircle size={14} />
                       计划已保存！
                     </div>
@@ -289,19 +342,21 @@ export default function InspirationPage() {
             )}
 
             {savedTo && (
-              <div className="rounded-2xl border p-4 text-center" style={{ background: '#FFF0E6', borderColor: '#F0E6D8' }}>
-                <p className="font-medium mb-2" style={{ color: '#FF6B8A' }}>灵感已保存！小狗为你开心~</p>
+              <div
+                className="rounded-2xl border p-4 text-center"
+                style={{ background: 'var(--glass-bg)', borderColor: 'var(--glass-border)' }}
+              >
+                <p className="font-medium mb-2" style={{ color: 'var(--accent-warm)' }}>灵感已保存！小狗为你开心~</p>
                 <Link
                   href={`/node/${savedTo}`}
-                  className="inline-block px-4 py-2 text-white rounded-lg text-sm"
-                  style={{ background: '#FF6B8A' }}
+                  className="inline-block px-4 py-2 text-white rounded-lg text-sm glow-btn"
                 >
                   去查看已保存的内容
                 </Link>
                 <button
                   onClick={() => { setSavedTo(''); setText(''); setExpandPlan(null); setExpandSaved(false) }}
-                  className="ml-2 text-sm hover:underline"
-                  style={{ color: '#FF6B8A' }}
+                  className="ml-2 text-sm transition-colors hover:underline"
+                  style={{ color: 'var(--accent-warm)' }}
                 >
                   继续记录
                 </button>

@@ -1,141 +1,32 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { getData, setData, deleteData } from './kv'
+import crypto from 'crypto'
 
 // ---------------------------------------------------------------------------
-// Supabase connection
+// Collection names in KV
 // ---------------------------------------------------------------------------
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const COLLECTIONS = {
+  users: 'db:users',
+  sessions: 'db:sessions',
+  nodes: 'db:nodes',
+  contents: 'db:contents',
+  edges: 'db:edges',
+  dailySummaries: 'db:daily_summaries',
+  attachments: 'db:attachments',
+  preferences: 'db:user_preferences',
+} as const
 
-const isConfigured = !!(supabaseUrl && supabaseKey)
-
-let supabase: SupabaseClient | null = null
-
-function getSupabase(): SupabaseClient {
-  if (!supabase) {
-    supabase = createClient(supabaseUrl, supabaseKey)
-  }
-  return supabase
-}
+const VERSION_KEY = 'db:version'
 
 // ---------------------------------------------------------------------------
-// Collection wrapper – lazy-loads from Supabase, keeps in-memory Map
+// In-memory cache (Map interface, same as before)
 // ---------------------------------------------------------------------------
 
 interface DbCollection<T = any> extends Map<string, T> {
   _array: T[]
 }
 
-function createSupabaseCollection<T extends Record<string, any> = any>(
-  tableName: string,
-  fallback: DbCollection<T>,
-): DbCollection<T> {
-  const cache = new Map<string, T>()
-  let loaded = false
-  let loadingPromise: Promise<void> | null = null
-
-  async function ensureLoaded(): Promise<void> {
-    if (loaded) return
-    if (loadingPromise) return loadingPromise
-    if (!isConfigured) { loaded = true; return }
-
-    loadingPromise = (async () => {
-      try {
-        const client = getSupabase()
-        const { data, error } = await client.from(tableName).select('*')
-        if (!error && data) {
-          cache.clear()
-          for (const row of data) {
-            cache.set(row.id, row as T)
-          }
-        }
-        if (error) {
-          console.error(`[db] Failed to load ${tableName}:`, error)
-        }
-      } catch (e) {
-        console.error(`[db] Error loading ${tableName}:`, e)
-      } finally {
-        loaded = true
-        loadingPromise = null
-      }
-    })()
-
-    return loadingPromise
-  }
-
-  const collection = new Map<string, T>() as DbCollection<T>
-
-  collection.get = function (key: string): T | undefined {
-    return cache.get(key)
-  }
-  collection.set = function (key: string, value: T): DbCollection<T> {
-    cache.set(key, value)
-    return collection
-  }
-  collection.delete = function (key: string): boolean {
-    return cache.delete(key)
-  }
-  collection.has = function (key: string): boolean {
-    return cache.has(key)
-  }
-  collection.clear = function (): void {
-    cache.clear()
-  }
-  collection.keys = function (): MapIterator<string> {
-    return cache.keys()
-  }
-  collection.values = function (): MapIterator<T> {
-    return cache.values()
-  }
-  collection.entries = function (): MapIterator<[string, T]> {
-    return cache.entries()
-  }
-  collection.forEach = function (
-    cb: (value: T, key: string, map: Map<string, T>) => void,
-  ): void {
-    cache.forEach(cb)
-  }
-  Object.defineProperty(collection, 'size', {
-    get() {
-      return cache.size
-    },
-    enumerable: true,
-  })
-
-  Object.defineProperty(collection, '_array', {
-    get() {
-      return Array.from(cache.values())
-    },
-    enumerable: true,
-  })
-
-  ;(collection as any)._ensureLoaded = ensureLoaded
-  ;(collection as any)._saveAll = async function saveAll(): Promise<void> {
-    if (!isConfigured) return
-    const client = getSupabase()
-    const records = Array.from(cache.values())
-    if (records.length === 0) return
-    const { error } = await client
-      .from(tableName)
-      .upsert(records as any[], { onConflict: 'id' })
-    if (error) {
-      console.error(`[db] Failed to save ${tableName}:`, error)
-    }
-  }
-
-  collection[Symbol.iterator] = function* (): MapIterator<[string, T]> {
-    yield* cache.entries()
-  }
-
-  return collection
-}
-
-// ---------------------------------------------------------------------------
-// Fallback: empty JSON-file-based collection
-// ---------------------------------------------------------------------------
-
-function createEmptyCollection<T>(): DbCollection<T> {
+function createCollection<T>(): DbCollection<T> {
   const map = new Map<string, T>() as DbCollection<T>
   Object.defineProperty(map, '_array', {
     get() {
@@ -143,80 +34,292 @@ function createEmptyCollection<T>(): DbCollection<T> {
     },
     enumerable: true,
   })
-  ;(map as any)._ensureLoaded = async () => {}
-  ;(map as any)._saveAll = async () => {}
   return map
 }
 
 // ---------------------------------------------------------------------------
-// Database object
+// DB object
+// ---------------------------------------------------------------------------
+
+const collections = {
+  users: createCollection<any>(),
+  sessions: createCollection<any>(),
+  nodes: createCollection<any>(),
+  contents: createCollection<any>(),
+  edges: createCollection<any>(),
+  dailySummaries: createCollection<any>(),
+  attachments: createCollection<any>(),
+  preferences: createCollection<any>(),
+}
+
+let loaded = false
+let loadingPromise: Promise<void> | null = null
+let memoryVersion = 0
+let saveLock: Promise<void> | null = null
+let saveQueue: (() => void)[] = []
+
+async function acquireSaveLock(): Promise<() => void> {
+  while (saveLock) {
+    await saveLock
+  }
+  let release!: () => void
+  saveLock = new Promise<void>((resolve) => {
+    release = () => {
+      saveLock = null
+      // Process queued waiters
+      const next = saveQueue.shift()
+      if (next) next()
+      resolve()
+    }
+  })
+  return release
+}
+
+async function getKVVersion(): Promise<number> {
+  try {
+    const v = await getData<number>(VERSION_KEY)
+    return v || 0
+  } catch {
+    return 0
+  }
+}
+
+async function setKVVersion(): Promise<void> {
+  const v = Date.now()
+  memoryVersion = v
+  await setData(VERSION_KEY, v)
+}
+
+async function ensureLoaded(forceRefresh = false): Promise<void> {
+  if (!forceRefresh && loaded) {
+    // Even if loaded, check if KV version has changed (another instance wrote data)
+    try {
+      const kvVersion = await getKVVersion()
+      if (kvVersion > memoryVersion) {
+        console.log(`[db] Version mismatch detected: memory=${memoryVersion}, kv=${kvVersion}, reloading...`)
+        loaded = false
+      }
+    } catch {
+      // Ignore version check errors
+    }
+  }
+
+  if (loaded && !forceRefresh) return
+  if (loadingPromise) return loadingPromise
+
+  loadingPromise = (async () => {
+    try {
+      const keys = Object.keys(COLLECTIONS) as Array<keyof typeof COLLECTIONS>
+      const results = await Promise.all(
+        keys.map((k) => getData<Record<string, any>>(COLLECTIONS[k]))
+      )
+
+      for (let i = 0; i < keys.length; i++) {
+        const col = collections[keys[i]] as Map<string, any>
+        col.clear()
+        const data = results[i]
+        if (data) {
+          for (const [id, record] of Object.entries(data)) {
+            col.set(id, record)
+          }
+        }
+      }
+
+      // Sync version from KV
+      try {
+        const kvVersion = await getKVVersion()
+        memoryVersion = kvVersion
+      } catch {
+        memoryVersion = 0
+      }
+
+      loaded = true
+
+      // Initialize default data if empty
+      if (collections.users.size === 0) {
+        await initDefaultData()
+      }
+
+      console.log(
+        `[db] KV loaded: ${collections.users.size} users, ${collections.sessions.size} sessions, ${collections.nodes.size} nodes, ${collections.contents.size} contents (version=${memoryVersion})`
+      )
+    } catch (error) {
+      console.error('[db] Failed to load from KV:', error)
+      loaded = true // Don't block forever
+      if (collections.users.size === 0) {
+        await initDefaultData()
+      }
+    } finally {
+      loadingPromise = null
+    }
+  })()
+
+  return loadingPromise
+}
+
+// ---------------------------------------------------------------------------
+// Initialize default data (no-login mode)
+// ---------------------------------------------------------------------------
+
+async function initDefaultData(): Promise<void> {
+  const now = new Date().toISOString()
+  const userId = 'default-user'
+
+  // Default user
+  collections.users.set(userId, {
+    id: userId,
+    username: '我',
+    password: '',
+    email: '',
+    securityQuestion: '',
+    securityAnswer: '',
+    createdAt: now,
+  })
+
+  // Create knowledge tree
+  const rootId = crypto.randomUUID()
+  collections.nodes.set(rootId, {
+    id: rootId,
+    name: '个人成长总系统',
+    type: 'ROOT',
+    color: '#4a90d9',
+    parentId: null,
+    sortOrder: 0,
+    userId,
+    createdAt: now,
+    updatedAt: now,
+  })
+
+  const systems = [
+    { name: '学习系统', color: '#4a90d9', subs: ['知识系统', '方法系统', '防漏系统', '改错系统', '不足之处/可优化'] },
+    { name: '性格系统', color: '#34a853', subs: ['性格认知系统', '不足之处系统'] },
+    { name: '人际交往系统', color: '#fbbc04', subs: ['人际交往能力认知', '不足之处系统', '方法系统'] },
+    { name: '安全系统', color: '#ea4335', subs: ['车辆使用常识系统'] },
+    { name: '目标愿望系统', color: '#9c27b0', subs: ['目标管理', '愿望追踪'] },
+    { name: '灵感系统', color: '#ff9800', subs: ['随手记录', '灵感归档'] },
+  ]
+
+  for (const sys of systems) {
+    const systemNodeId = crypto.randomUUID()
+    collections.nodes.set(systemNodeId, {
+      id: systemNodeId,
+      name: sys.name,
+      type: 'SYSTEM',
+      parentId: rootId,
+      color: sys.color,
+      sortOrder: 0,
+      userId,
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    for (const sub of sys.subs) {
+      const subId = crypto.randomUUID()
+      collections.nodes.set(subId, {
+        id: subId,
+        name: sub,
+        type: 'SUBSYSTEM',
+        parentId: systemNodeId,
+        color: sys.color,
+        sortOrder: 0,
+        userId,
+        createdAt: now,
+        updatedAt: now,
+      })
+    }
+  }
+
+  await db.save()
+  console.log('[db] Default data initialized')
+}
+
+// ---------------------------------------------------------------------------
+// Cache-Control headers for API responses
+// ---------------------------------------------------------------------------
+
+export const noCacheHeaders = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+}
+
+// ---------------------------------------------------------------------------
+// Public db object (Map-compatible interface for all existing API routes)
 // ---------------------------------------------------------------------------
 
 export const db = {
-  users: createSupabaseCollection('users', createEmptyCollection<any>()),
-  sessions: createSupabaseCollection('sessions', createEmptyCollection<any>()),
-  nodes: createSupabaseCollection('nodes', createEmptyCollection<any>()),
-  contents: createSupabaseCollection('contents', createEmptyCollection<any>()),
-  edges: createSupabaseCollection('edges', createEmptyCollection<any>()),
-  dailySummaries: createSupabaseCollection('daily_summaries', createEmptyCollection<any>()),
-  attachments: createSupabaseCollection('attachments', createEmptyCollection<any>()),
-  preferences: createSupabaseCollection('user_preferences', createEmptyCollection<any>()),
+  // Direct map references (same interface as before)
+  get users(): DbCollection<any> { return collections.users },
+  get sessions(): DbCollection<any> { return collections.sessions },
+  get nodes(): DbCollection<any> { return collections.nodes },
+  get contents(): DbCollection<any> { return collections.contents },
+  get edges(): DbCollection<any> { return collections.edges },
+  get dailySummaries(): DbCollection<any> { return collections.dailySummaries },
+  get attachments(): DbCollection<any> { return collections.attachments },
+  get preferences(): DbCollection<any> { return collections.preferences },
+
+  // Core methods
+  async load(forceRefresh = false): Promise<void> {
+    await ensureLoaded(forceRefresh)
+  },
 
   async save(): Promise<void> {
-    const collections = [
-      this.users,
-      this.sessions,
-      this.nodes,
-      this.contents,
-      this.edges,
-      this.dailySummaries,
-      this.attachments,
-      this.preferences,
-    ] as any[]
-    await Promise.all(collections.map((c) => c._saveAll()))
+    const release = await acquireSaveLock()
+    try {
+      const keys = Object.keys(COLLECTIONS) as Array<keyof typeof COLLECTIONS>
+      const toSave = keys.map((k) => {
+        const col = collections[k] as Map<string, any>
+        return Object.fromEntries(col)
+      })
+
+      // Write all collections and version atomically
+      await Promise.all([
+        ...keys.map((k, i) => setData(COLLECTIONS[k], toSave[i])),
+        setKVVersion(),
+      ])
+
+      // Verify save by reading back
+      try {
+        const verifyKey = COLLECTIONS.contents
+        const verifyData = await getData<Record<string, any>>(verifyKey)
+        const inMemoryCount = collections.contents.size
+        const onDiskCount = verifyData ? Object.keys(verifyData).length : 0
+        console.log(`[db] Save verification: contents in-memory=${inMemoryCount}, on-disk=${onDiskCount}`)
+        if (inMemoryCount > 0 && onDiskCount === 0) {
+          console.error('[db] Save verification FAILED: in-memory data exists but KV returned empty')
+        }
+      } catch (verifyError) {
+        console.error('[db] Save verification read-back failed:', verifyError)
+      }
+
+      console.log(`[db] Saved to KV (version=${memoryVersion})`)
+    } catch (error) {
+      console.error('[db] Failed to save to KV:', error)
+      throw error // Re-throw so callers know save failed
+    } finally {
+      release()
+    }
   },
 
   async reload(): Promise<void> {
-    const collections = [
-      this.users,
-      this.sessions,
-      this.nodes,
-      this.contents,
-      this.edges,
-      this.dailySummaries,
-      this.attachments,
-      this.preferences,
-    ] as any[]
-    for (const c of collections) {
-      c.clear()
-      ;(c as any)._ensureLoaded = null
-    }
-    // Re-create ensureLoaded by marking as not loaded
-    // We do this by creating new collections - but that's complex
-    // Instead, let's just force load
-    if (isConfigured) {
-      await Promise.all(collections.map((c) => c._ensureLoaded()))
-    }
+    loaded = false
+    await ensureLoaded(true)
   },
 
-  async load(): Promise<void> {
-    const collections = [
-      this.users,
-      this.sessions,
-      this.nodes,
-      this.contents,
-      this.edges,
-      this.dailySummaries,
-      this.attachments,
-      this.preferences,
-    ] as any[]
-    await Promise.all(collections.map((c) => c._ensureLoaded()))
+  isLoaded(): boolean {
+    return loaded
+  },
+
+  getVersion(): number {
+    return memoryVersion
   },
 }
 
-// Periodically save to Supabase every 30 seconds
+// Auto-save every 20 seconds
 if (typeof globalThis !== 'undefined' && typeof setInterval === 'function') {
   setInterval(() => {
-    db.save()
-  }, 30_000)
+    if (loaded) {
+      db.save().catch((err) => console.error('[db] Auto-save failed:', err))
+    }
+  }, 20_000)
 }

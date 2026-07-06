@@ -89,10 +89,10 @@ export function AIClassifyPanel({ text, onConfirm, onCancel }: AIClassifyPanelPr
   }
 
   return (
-    <div className="rounded-lg p-4 border" style={{ background: '#FFF5EB', borderColor: '#F0E6D8' }}>
+    <div className="rounded-lg p-4 border" style={{ background: 'var(--glass-bg)', borderColor: 'var(--glass-border)' }}>
       <div className="flex items-center gap-2 mb-3">
         <Sparkles size={16} style={{ color: '#FF8C42' }} />
-        <span className="font-medium" style={{ color: '#5D4E37' }}>
+        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
           AI 建议归档到：
         </span>
         {result.isFromPreference && (
@@ -109,11 +109,11 @@ export function AIClassifyPanel({ text, onConfirm, onCancel }: AIClassifyPanelPr
       <div className="mb-3">
         <div
           className="px-3 py-2 rounded-lg font-medium"
-          style={{ background: '#FFEEE0', color: '#5D4E37' }}
+          style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)' }}
         >
           {result.suggestedNodeName || '推荐节点'}
         </div>
-        <div className="text-xs mt-1" style={{ color: '#8B7355' }}>
+        <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
           置信度: {Math.round(result.confidence * 100)}%
         </div>
       </div>
@@ -154,7 +154,7 @@ export function AIClassifyPanel({ text, onConfirm, onCancel }: AIClassifyPanelPr
       ) : (
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-medium block mb-1" style={{ color: '#8B7355' }}>
+            <label className="text-xs font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>
               请选择正确的归档节点：
             </label>
             <div className="relative">
@@ -163,9 +163,9 @@ export function AIClassifyPanel({ text, onConfirm, onCancel }: AIClassifyPanelPr
                 onChange={(e) => setSelectedNodeId(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg text-sm appearance-none border focus:outline-none focus:ring-2"
                 style={{
-                  background: '#FFF8F0',
-                  borderColor: '#F0E6D8',
-                  color: '#5D4E37',
+                  background: 'rgba(255,255,255,0.05)',
+                  borderColor: 'var(--glass-border)',
+                  color: 'var(--text-primary)',
                 }}
               >
                 {allNodes.map((node) => (
@@ -177,7 +177,7 @@ export function AIClassifyPanel({ text, onConfirm, onCancel }: AIClassifyPanelPr
               <ChevronDown
                 size={16}
                 className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: '#8B7355' }}
+                style={{ color: 'var(--text-muted)' }}
               />
             </div>
           </div>

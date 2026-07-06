@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { GlassCard } from '@/components/theme/GlassCard'
 import { Menu, ArrowLeft, Upload, FileText, Check, Sparkles, File } from 'lucide-react'
 import Link from 'next/link'
 
@@ -56,7 +57,6 @@ export default function ImportPage() {
     if (data.text) {
       setText(data.text)
       setIsText(data.isText)
-      // For binary files, also pass filename to AI for analysis
       const analyzeText = data.isText ? data.text : data.fileName + '\n' + data.text
       analyzeContent(analyzeText)
     }
@@ -89,27 +89,40 @@ export default function ImportPage() {
   }
 
   return (
-    <div className="flex h-screen bg-[#FFF8F0]">
+    <div className="flex h-screen" style={{ background: 'var(--bg-deep)' }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 bg-white border-b border-[#F0E6D8] flex items-center gap-3 px-4">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 hover:bg-[#FFF0E6] rounded">
+      <main className="flex-1 flex flex-col min-w-0 relative z-10">
+        <header
+          className="h-14 border-b flex items-center gap-3 px-4 backdrop-blur-xl"
+          style={{
+            background: 'rgba(0, 0, 0, 0.4)',
+            borderColor: 'var(--glass-border)',
+          }}
+        >
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden p-2 rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+          >
             <Menu size={20} />
           </button>
-          <Link href="/" className="p-2 hover:bg-[#FFF0E6] rounded">
-            <ArrowLeft size={20} className="text-[#5D4E37]" />
+          <Link
+            href="/"
+            className="p-2 rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <ArrowLeft size={20} />
           </Link>
-          <h1 className="font-semibold text-[#5D4E37]">笔记导入</h1>
+          <h1 className="font-semibold" style={{ color: 'var(--text-primary)' }}>笔记导入</h1>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 pb-20">
-          <div className="max-w-xl mx-auto space-y-4">
-
+          <div className="max-w-xl mx-auto space-y-4 relative z-10">
             <div className="text-center mb-4">
-              <img src="/pups/pup-write.svg" alt="write pup" className="w-28 h-28 mx-auto puppy-float" />
-              <h2 className="text-lg font-semibold text-[#5D4E37] mt-2">把笔记丢给小狗~</h2>
-              <p className="text-sm text-[#8B7D6B]">支持 Markdown、文本、Word、PPT、PDF 等</p>
+              <img src="/pups/pup-write.svg" alt="write pup" className="w-28 h-28 mx-auto puppy-float puppy-dark" />
+              <h2 className="text-lg font-semibold mt-2" style={{ color: 'var(--text-primary)' }}>把笔记丢给小狗~</h2>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>支持 Markdown、文本、Word、PPT、PDF 等</p>
             </div>
 
             <div
@@ -119,9 +132,12 @@ export default function ImportPage() {
               onClick={() => fileRef.current?.click()}
               className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
                 dragOver
-                  ? 'border-[#FF6B8A] bg-[#FFF0F3]'
-                  : 'border-[#F0E6D8] bg-white hover:border-[#FF6B8A]/50'
+                  ? 'border-[var(--accent-nebula)]'
+                  : 'border-[var(--glass-border)] hover:border-[var(--accent-nebula)]/50'
               }`}
+              style={{
+                background: dragOver ? 'rgba(139, 92, 246, 0.05)' : 'var(--glass-bg)',
+              }}
             >
               <input
                 ref={fileRef}
@@ -130,53 +146,53 @@ export default function ImportPage() {
                 className="hidden"
                 onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0])}
               />
-              <Upload size={36} className="mx-auto text-[#FF6B8A] mb-2" />
-              <p className="text-[#5D4E37] font-medium">拖拽文件到这里</p>
-              <p className="text-xs text-[#8B7D6B] mt-1">
+              <Upload size={36} className="mx-auto mb-2" style={{ color: 'var(--accent-nebula)' }} />
+              <p className="font-medium" style={{ color: 'var(--text-primary)' }}>拖拽文件到这里</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
                 .md .txt .doc .docx .ppt .pptx .pdf .csv .json
               </p>
             </div>
 
             {file && (
-              <div className="flex items-center gap-2 bg-white rounded-xl p-3 border border-[#F0E6D8]">
+              <GlassCard hover={false} className="flex items-center gap-2 p-3">
                 <span className="text-lg">{getFileIcon(file.name)}</span>
-                <span className="text-sm text-[#5D4E37] flex-1 truncate">{file.name}</span>
-                <span className="text-xs text-[#8B7D6B]">{(file.size / 1024).toFixed(1)} KB</span>
-                {!isText && <span className="px-1.5 py-0.5 bg-[#FFF0E6] text-[#8B7D6B] rounded text-xs">二进制</span>}
-              </div>
+                <span className="text-sm flex-1 truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{(file.size / 1024).toFixed(1)} KB</span>
+                {!isText && <span className="px-1.5 py-0.5 rounded text-xs" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}>二进制</span>}
+              </GlassCard>
             )}
 
             {analyzing && (
               <div className="text-center py-6">
-                <img src="/pups/pup-think.svg" alt="thinking" className="w-20 h-20 mx-auto puppy-float" />
-                <p className="text-[#8B7D6B] mt-2 text-sm">
+                <img src="/pups/pup-think.svg" alt="thinking" className="w-20 h-20 mx-auto puppy-float puppy-dark" />
+                <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
                   {isText ? '小狗正在分析内容...' : '小狗正在分析文件名...'}
                 </p>
               </div>
             )}
 
             {result && (
-              <div className="bg-white rounded-2xl border border-[#F0E6D8] p-5 space-y-4">
+              <GlassCard hover={false} className="p-5 space-y-4">
                 <div className="flex items-center gap-2">
-                  <Sparkles size={18} className="text-[#FFD93D]" />
-                  <span className="font-medium text-[#5D4E37]">分析结果</span>
+                  <Sparkles size={18} style={{ color: 'var(--accent-aurora)' }} />
+                  <span className="font-medium" style={{ color: 'var(--text-primary)' }}>分析结果</span>
                 </div>
 
                 {result.summary && (
-                  <div className="bg-[#FFF8F0] rounded-xl p-3">
-                    <span className="text-xs text-[#8B7D6B]">一句话总结</span>
-                    <p className="text-sm text-[#5D4E37] mt-1 font-medium">{result.summary}</p>
+                  <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>一句话总结</span>
+                    <p className="text-sm mt-1 font-medium" style={{ color: 'var(--text-primary)' }}>{result.summary}</p>
                   </div>
                 )}
 
                 {result.suggestedNodeName && (
                   <div>
-                    <span className="text-xs text-[#8B7D6B]">建议归档到</span>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>建议归档到</span>
                     <div className="flex flex-wrap gap-2 mt-2">
                       <button
                         onClick={() => handleSave(result.suggestedNodeId)}
                         disabled={saved}
-                        className="px-3 py-1.5 bg-[#FF6B8A] text-white rounded-full text-sm font-medium disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-full text-sm font-medium disabled:opacity-50 glow-btn"
                       >
                         {saved ? <Check size={14} className="inline" /> : null}
                         {result.suggestedNodeName}
@@ -186,7 +202,12 @@ export default function ImportPage() {
                           key={alt.nodeId}
                           onClick={() => handleSave(alt.nodeId)}
                           disabled={saved}
-                          className="px-3 py-1.5 bg-[#FFF0E6] text-[#5D4E37] rounded-full text-sm border border-[#F0E6D8] disabled:opacity-50"
+                          className="px-3 py-1.5 rounded-full text-sm disabled:opacity-50 transition-colors"
+                          style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--glass-border)',
+                          }}
                         >
                           {alt.nodeName}
                         </button>
@@ -196,19 +217,24 @@ export default function ImportPage() {
                 )}
 
                 {saved && (
-                  <div className="text-center text-green-600 text-sm font-medium">
-                    <img src="/pups/pup-happy.svg" alt="happy" className="w-16 h-16 mx-auto" />
+                  <div className="text-center text-sm font-medium" style={{ color: 'rgba(134, 239, 172, 0.9)' }}>
+                    <img src="/pups/pup-happy.svg" alt="happy" className="w-16 h-16 mx-auto puppy-dark" />
                     已保存！小狗帮你归档好了~
                   </div>
                 )}
-              </div>
+              </GlassCard>
             )}
 
             {text && (
-              <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
-                <span className="text-xs text-[#8B7D6B]">内容预览</span>
-                <pre className="mt-2 text-xs text-[#5D4E37] whitespace-pre-wrap max-h-40 overflow-y-auto bg-[#FFF8F0] rounded-lg p-3">{text.slice(0, 1000)}{text.length > 1000 ? '...' : ''}</pre>
-              </div>
+              <GlassCard hover={false} className="p-4">
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>内容预览</span>
+                <pre
+                  className="mt-2 text-xs whitespace-pre-wrap max-h-40 overflow-y-auto rounded-lg p-3"
+                  style={{ background: 'rgba(255,255,255,0.03)', color: 'var(--text-primary)' }}
+                >
+                  {text.slice(0, 1000)}{text.length > 1000 ? '...' : ''}
+                </pre>
+              </GlassCard>
             )}
           </div>
         </div>

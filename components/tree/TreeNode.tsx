@@ -89,18 +89,18 @@ export function TreeNode({ node, level = 0 }: TreeNodeProps) {
   ].join(' ')
 
   const iconColor = isRoot
-    ? '#FF6B8A'
+    ? 'var(--accent-warm)'
     : isSystem
-      ? node.color || '#8B7355'
-      : '#A09080'
+      ? node.color || 'var(--text-muted)'
+      : 'var(--text-muted)'
 
   const nameClasses = [
     'truncate transition-colors',
     isRoot
-      ? 'text-[#5D4E37]'
+      ? 'text-[var(--text-primary)]'
       : isSystem
-        ? 'text-[#5D4E37]'
-        : 'text-[#7A6B5A]',
+        ? 'text-[var(--text-primary)]'
+        : 'text-[var(--text-muted)]',
   ].join(' ')
 
   const indent = level * 18 + 8
@@ -111,24 +111,24 @@ export function TreeNode({ node, level = 0 }: TreeNodeProps) {
         className={containerClasses}
         style={{
           paddingLeft: `${indent}px`,
-          borderLeftColor: isSystem ? (node.color || '#F0E6D8') : 'transparent',
+          borderLeftColor: isSystem ? (node.color || 'var(--glass-border)') : 'transparent',
         }}
       >
         {/* Expand/collapse toggle */}
         {loading ? (
           <span className="w-[22px] h-[22px] flex items-center justify-center shrink-0">
-            <div className="w-3 h-3 border-2 border-[#E0D5C8] border-t-[#FF6B8A] rounded-full animate-spin" />
+            <div className="w-3 h-3 border-2 border-[var(--glass-border)] border-t-[var(--accent-warm)] rounded-full animate-spin" />
           </span>
         ) : hasChildren !== false ? (
           <button
             onClick={handleToggle}
-            className="p-0.5 hover:bg-[#F0E6D8] rounded shrink-0 transition-colors"
+            className="p-0.5 hover:bg-[var(--glass-border)] rounded shrink-0 transition-colors"
             title={isOpen ? '收起' : '展开'}
           >
             {isOpen ? (
-              <ChevronDown size={14} className="text-[#8B7355]" />
+              <ChevronDown size={14} className="text-[var(--text-muted)]" />
             ) : (
-              <ChevronRight size={14} className="text-[#8B7355]" />
+              <ChevronRight size={14} className="text-[var(--text-muted)]" />
             )}
           </button>
         ) : (
@@ -155,7 +155,7 @@ export function TreeNode({ node, level = 0 }: TreeNodeProps) {
 
         {/* Child count badge */}
         {childCount > 0 && (
-          <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-[#FFF0E6] text-[#8B7355] font-medium shrink-0">
+          <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-[rgba(255,255,255,0.05)] text-[var(--text-muted)] font-medium shrink-0">
             {childCount}
           </span>
         )}
@@ -170,22 +170,22 @@ export function TreeNode({ node, level = 0 }: TreeNodeProps) {
               e.stopPropagation()
               setShowMenu(!showMenu)
             }}
-            className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-[#F0E6D8] transition-all"
+            className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-[var(--glass-border)] transition-all"
             title="操作"
           >
-            <Plus size={14} className="text-[#8B7355]" />
+            <Plus size={14} className="text-[var(--text-muted)]" />
           </button>
 
           {showMenu && (
-            <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-50 min-w-[130px] py-1"
-              style={{ borderColor: '#F0E6D8' }}
+            <div className="absolute right-0 top-full mt-1 bg-[var(--bg-surface)] border rounded-lg shadow-lg z-50 min-w-[130px] py-1"
+              style={{ borderColor: 'var(--glass-border)' }}
             >
               <button
                 onClick={(e) => {
                   e.stopPropagation()
                   handleCreateChild()
                 }}
-                className="w-full text-left px-3 py-2 text-sm text-[#5D4E37] hover:bg-[#FFF8F0] flex items-center gap-2"
+                className="w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.05)] flex items-center gap-2"
               >
                 <Folder size={14} style={{ color: node.color || '#FF6B8A' }} />
                 新建子系统
@@ -193,9 +193,9 @@ export function TreeNode({ node, level = 0 }: TreeNodeProps) {
               <Link
                 href={`/node/${node.id}?action=add-content`}
                 onClick={() => setShowMenu(false)}
-                className="block w-full text-left px-3 py-2 text-sm text-[#5D4E37] hover:bg-[#FFF8F0] flex items-center gap-2"
+                className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.05)] flex items-center gap-2"
               >
-                <FileText size={14} className="text-[#8B7355]" />
+                <FileText size={14} className="text-[var(--text-muted)]" />
                 添加内容
               </Link>
             </div>

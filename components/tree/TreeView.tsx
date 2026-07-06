@@ -17,11 +17,11 @@ export function TreeView() {
       })
   }, [])
 
-  if (loading) return <div className="p-4 text-sm text-[#8B7355]">加载中...</div>
+  if (loading) return <div className="p-4 text-sm text-[var(--text-muted)]">加载中...</div>
 
   if (nodes.length === 0) {
     return (
-      <div className="p-4 text-sm text-[#8B7355]">
+      <div className="p-4 text-sm text-[var(--text-muted)]">
         暂无系统节点
       </div>
     )

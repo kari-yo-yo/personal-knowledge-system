@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { GlassCard } from '@/components/theme/GlassCard'
 import { Menu, ArrowLeft, Send, RotateCcw, Star, BookOpen, CheckCircle, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react'
 import Link from 'next/link'
 
@@ -18,12 +19,18 @@ interface FeynmanResult {
   improvedVersion: string
   comparison: ComparisonItem[]
   memoryTip: string
+  realLifeExample?: string
+  commonMisconceptions?: string[]
+  domain?: string
+  domainSpecificFeedback?: string[]
 }
 
 interface StandardResult {
   concept: string
   explanation: string
   keyPoints: string[]
+  realLifeExample?: string
+  commonMisconceptions?: string[]
 }
 
 export default function FeynmanPage() {
@@ -85,44 +92,65 @@ export default function FeynmanPage() {
     if (s >= 9) return 'text-[#FF6B8A]'
     if (s >= 7) return 'text-[#FFB347]'
     if (s >= 5) return 'text-[#FFD93D]'
-    return 'text-[#A8D8EA]'
+    return 'text-[#06B6D4]'
   }
 
   const scoreBg = (s: number) => {
     if (s >= 9) return 'bg-[#FF6B8A]/10'
     if (s >= 7) return 'bg-[#FFB347]/10'
     if (s >= 5) return 'bg-[#FFD93D]/10'
-    return 'bg-[#A8D8EA]/10'
+    return 'bg-[#06B6D4]/10'
   }
 
   return (
-    <div className="flex h-screen bg-[#FFF8F0]">
+    <div className="flex h-screen" style={{ background: 'var(--bg-deep)' }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 bg-white border-b border-[#F0E6D8] flex items-center gap-3 px-4">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 hover:bg-[#FFF0E6] rounded">
+      <main className="flex-1 flex flex-col min-w-0 relative z-10">
+        <header
+          className="h-14 border-b flex items-center gap-3 px-4 backdrop-blur-xl"
+          style={{
+            background: 'rgba(0, 0, 0, 0.4)',
+            borderColor: 'var(--glass-border)',
+          }}
+        >
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden p-2 rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+          >
             <Menu size={20} />
           </button>
-          <Link href="/" className="p-2 hover:bg-[#FFF0E6] rounded">
-            <ArrowLeft size={20} className="text-[#5D4E37]" />
+          <Link
+            href="/"
+            className="p-2 rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <ArrowLeft size={20} />
           </Link>
-          <h1 className="font-semibold text-[#5D4E37]">费曼学习卡片</h1>
+          <h1 className="font-semibold" style={{ color: 'var(--text-primary)' }}>费曼学习卡片</h1>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 pb-20">
-          <div className="max-w-xl mx-auto space-y-4">
-
+          <div className="max-w-xl mx-auto space-y-4 relative z-10">
             <div className="text-center mb-4">
-              <img src="/pups/pup-think.svg" alt="think pup" className="w-28 h-28 mx-auto puppy-float" />
-              <h2 className="text-lg font-semibold text-[#5D4E37] mt-2">你能一句话讲清楚吗？</h2>
-              <p className="text-sm text-[#8B7D6B]">选一个概念，用最通俗的语言解释它，小狗会帮你打分</p>
+              <img
+                src="/pups/pup-think.svg"
+                alt="think pup"
+                className="w-28 h-28 mx-auto puppy-float puppy-dark"
+              />
+              <h2 className="text-lg font-semibold mt-2" style={{ color: 'var(--text-primary)' }}>
+                你能一句话讲清楚吗？
+              </h2>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                选一个概念，用最通俗的语言解释它，小狗会帮你打分
+              </p>
             </div>
 
             {!result ? (
               <div className="space-y-4">
-                <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
-                  <label className="block text-sm font-medium text-[#5D4E37] mb-2">
+                <GlassCard hover={false} className="p-4">
+                  <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
                     你要解释什么概念？
                   </label>
                   <input
@@ -133,71 +161,95 @@ export default function FeynmanPage() {
                       setShowStandard(false)
                     }}
                     placeholder="例如：复利、熵增、区块链..."
-                    className="w-full px-4 py-3 bg-[#FFF8F0] border border-[#F0E6D8] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B8A]/50 text-[#5D4E37]"
+                    className="w-full star-input"
                   />
                   {concept.trim() && (
                     <button
                       onClick={handleFetchStandard}
                       disabled={standardLoading}
-                      className="mt-2 flex items-center gap-1.5 text-xs text-[#FF6B8A] hover:text-[#FF5277] font-medium"
+                      className="mt-2 flex items-center gap-1.5 text-xs font-medium transition-colors"
+                      style={{ color: 'var(--accent-warm)' }}
                     >
                       <BookOpen size={14} />
                       {standardLoading ? '加载中...' : '查看标准答案'}
                     </button>
                   )}
-                </div>
+                </GlassCard>
 
                 {showStandard && standardAnswer && (
-                  <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
+                  <GlassCard hover={false} className="p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-medium text-[#5D4E37] flex items-center gap-1.5">
-                        <BookOpen size={16} className="text-[#FF6B8A]" />
+                      <h3 className="text-sm font-medium flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                        <BookOpen size={16} style={{ color: 'var(--accent-warm)' }} />
                         标准答案参考
                       </h3>
                       <button
                         onClick={() => setShowStandard(false)}
-                        className="text-xs text-[#8B7D6B] hover:text-[#5D4E37]"
+                        className="text-xs transition-colors"
+                        style={{ color: 'var(--text-muted)' }}
                       >
                         收起
                       </button>
                     </div>
-                    <p className="text-sm text-[#5D4E37] leading-relaxed bg-[#FFF8F0] rounded-xl p-3">
+                    <p
+                      className="text-sm leading-relaxed rounded-xl p-3"
+                      style={{ background: 'rgba(255,255,255,0.03)', color: 'var(--text-primary)' }}
+                    >
                       {standardAnswer.explanation}
                     </p>
+                    {standardAnswer.realLifeExample && (
+                      <div className="mt-3 p-3 rounded-xl" style={{ background: 'rgba(34, 197, 94, 0.1)' }}>
+                        <p className="text-xs font-medium mb-1" style={{ color: 'rgba(134, 239, 172, 0.9)' }}>💡 生活实例</p>
+                        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-primary)' }}>{standardAnswer.realLifeExample}</p>
+                      </div>
+                    )}
                     <div className="mt-3">
-                      <p className="text-xs font-medium text-[#8B7D6B] mb-1.5">关键要点：</p>
+                      <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>关键要点：</p>
                       <div className="space-y-1.5">
                         {standardAnswer.keyPoints.map((point, i) => (
-                          <div key={i} className="flex items-start gap-2 text-xs text-[#5D4E37]">
-                            <span className="text-[#FF6B8A] font-bold shrink-0">{i + 1}.</span>
+                          <div key={i} className="flex items-start gap-2 text-xs" style={{ color: 'var(--text-primary)' }}>
+                            <span className="font-bold shrink-0" style={{ color: 'var(--accent-warm)' }}>{i + 1}.</span>
                             <span>{point}</span>
                           </div>
                         ))}
                       </div>
                     </div>
-                  </div>
+                    {standardAnswer.commonMisconceptions && standardAnswer.commonMisconceptions.length > 0 && (
+                      <div className="mt-3 p-3 rounded-xl" style={{ background: 'rgba(255, 152, 0, 0.1)' }}>
+                        <p className="text-xs font-medium mb-1" style={{ color: 'rgba(253, 186, 116, 0.9)' }}>⚠️ 常见误区</p>
+                        <div className="space-y-1">
+                          {standardAnswer.commonMisconceptions.map((m, i) => (
+                            <div key={i} className="flex items-start gap-1.5 text-xs" style={{ color: 'var(--text-primary)' }}>
+                              <span className="shrink-0" style={{ color: 'rgba(253, 186, 116, 0.9)' }}>&#9679;</span>
+                              {m}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </GlassCard>
                 )}
 
-                <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
-                  <label className="block text-sm font-medium text-[#5D4E37] mb-2">
+                <GlassCard hover={false} className="p-4">
+                  <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
                     用一句话讲给奶奶听
                   </label>
                   <textarea
                     value={explanation}
                     onChange={(e) => setExplanation(e.target.value)}
                     placeholder="试着用类比、举例的方式，不用专业术语..."
-                    className="w-full h-28 p-3 bg-[#FFF8F0] border border-[#F0E6D8] rounded-xl resize-none text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B8A]/50 text-[#5D4E37]"
+                    className="w-full h-28 resize-none star-input"
                   />
                   <div className="flex justify-between mt-2">
-                    <span className="text-xs text-[#8B7D6B]">{explanation.length} 字</span>
-                    <span className="text-xs text-[#8B7D6B]">建议 50-150 字</span>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{explanation.length} 字</span>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>建议 50-150 字</span>
                   </div>
-                </div>
+                </GlassCard>
 
                 <button
                   onClick={handleSubmit}
                   disabled={!concept.trim() || !explanation.trim() || loading}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-[#FF6B8A] hover:bg-[#FF5277] disabled:opacity-50 text-white rounded-xl font-medium"
+                  className="glow-btn w-full flex items-center justify-center gap-2 py-3 disabled:opacity-50"
                 >
                   {loading ? '小狗评分中...' : (
                     <><Send size={18} /> 提交让小狗打分</>
@@ -206,113 +258,191 @@ export default function FeynmanPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className={`rounded-2xl border border-[#F0E6D8] p-5 text-center ${scoreBg(result.score)}`}>
+                <GlassCard
+                  hover={false}
+                  className={`p-5 text-center ${scoreBg(result.score)}`}
+                >
                   <div className="flex justify-center mb-2">
                     {[1, 2, 3, 4, 5].map((s) => (
                       <Star
                         key={s}
                         size={24}
-                        className={s * 2 <= result.score ? scoreColor(result.score) : 'text-[#F0E6D8]'}
+                        className={s * 2 <= result.score ? scoreColor(result.score) : ''}
+                        style={s * 2 <= result.score ? {} : { color: 'var(--glass-border)' }}
                         fill={s * 2 <= result.score ? 'currentColor' : 'none'}
                       />
                     ))}
                   </div>
                   <div className={`text-4xl font-bold ${scoreColor(result.score)}`}>
-                    {result.score}<span className="text-lg text-[#8B7D6B]">/10</span>
+                    {result.score}<span className="text-lg" style={{ color: 'var(--text-muted)' }}>/10</span>
                   </div>
-                  <div className="text-lg font-medium text-[#5D4E37] mt-1">
+                  <div className="text-lg font-medium mt-1" style={{ color: 'var(--text-primary)' }}>
                     {result.level}
                   </div>
                   {result.score >= 9 && (
-                    <img src="/pups/pup-happy.svg" alt="happy" className="w-20 h-20 mx-auto mt-2 puppy-float" />
+                    <img src="/pups/pup-happy.svg" alt="happy" className="w-20 h-20 mx-auto mt-2 puppy-float puppy-dark" />
                   )}
                   {result.score < 5 && (
-                    <img src="/pups/pup-sleep.svg" alt="sleep" className="w-20 h-20 mx-auto mt-2" />
+                    <img src="/pups/pup-sleep.svg" alt="sleep" className="w-20 h-20 mx-auto mt-2 puppy-dark" />
                   )}
-                </div>
+                </GlassCard>
 
-                <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
-                  <h3 className="font-medium text-[#5D4E37] mb-3">小狗的反馈</h3>
+                <GlassCard hover={false} className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <h3 className="font-medium" style={{ color: 'var(--text-primary)' }}>小狗的反馈</h3>
+                    {result.domain && (
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full font-medium"
+                        style={{ background: 'rgba(255, 107, 138, 0.15)', color: 'var(--accent-warm)' }}
+                      >
+                        {result.domain}
+                      </span>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     {result.feedback.map((f: string, i: number) => (
-                      <div key={i} className="flex items-start gap-2 text-sm text-[#5D4E37]">
-                        <span className="text-[#FFD93D]">🐾</span>
+                      <div key={i} className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+                        <span style={{ color: 'var(--accent-aurora)' }}>🐾</span>
                         {f}
                       </div>
                     ))}
                   </div>
-                </div>
+                  {result.domainSpecificFeedback && result.domainSpecificFeedback.length > 0 && (
+                    <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                      <p className="text-xs font-medium mb-2" style={{ color: 'var(--accent-warm)' }}>领域专属建议</p>
+                      {result.domainSpecificFeedback.map((f, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm mb-1" style={{ color: 'var(--text-primary)' }}>
+                          <span style={{ color: 'var(--accent-nebula)' }}>&#9733;</span>
+                          {f}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </GlassCard>
 
                 {/* 修改建议 */}
-                <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
+                <GlassCard hover={false} className="p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-medium text-[#5D4E37] flex items-center gap-1.5">
-                      <CheckCircle size={16} className="text-[#FF6B8A]" />
+                    <h3 className="font-medium flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                      <CheckCircle size={16} style={{ color: 'var(--accent-warm)' }} />
                       修改建议
                     </h3>
                     <button
                       onClick={handleAdopt}
-                      className="text-xs flex items-center gap-1 px-2.5 py-1.5 bg-[#FF6B8A] hover:bg-[#FF5277] text-white rounded-lg font-medium"
+                      className="glow-btn text-xs flex items-center gap-1 px-2.5 py-1.5"
                     >
                       <CheckCircle size={12} />
                       采纳修改
                     </button>
                   </div>
-                  <p className="text-sm text-[#5D4E37] leading-relaxed bg-[#FFF8F0] rounded-xl p-3">
+                  <p
+                    className="text-sm leading-relaxed rounded-xl p-3"
+                    style={{ background: 'rgba(255,255,255,0.03)', color: 'var(--text-primary)' }}
+                  >
                     {result.improvedVersion}
                   </p>
-                </div>
+                </GlassCard>
 
                 {/* 对比学习 */}
                 {result.comparison.length > 0 && (
-                  <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
+                  <GlassCard hover={false} className="p-4">
                     <button
                       onClick={() => setShowComparison(!showComparison)}
                       className="w-full flex items-center justify-between mb-2"
                     >
-                      <h3 className="font-medium text-[#5D4E37] flex items-center gap-1.5">
-                        <Lightbulb size={16} className="text-[#FFB347]" />
+                      <h3 className="font-medium flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                        <Lightbulb size={16} style={{ color: 'var(--accent-aurora)' }} />
                         对比学习
                       </h3>
-                      {showComparison ? <ChevronUp size={16} className="text-[#8B7D6B]" /> : <ChevronDown size={16} className="text-[#8B7D6B]" />}
+                      {showComparison ? (
+                        <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} />
+                      ) : (
+                        <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />
+                      )}
                     </button>
                     {showComparison && (
                       <div className="space-y-3">
                         {result.comparison.map((item, i) => (
-                          <div key={i} className="rounded-xl border border-[#F0E6D8] overflow-hidden">
-                            <div className="bg-[#FFF8F0] px-3 py-2 text-xs font-medium text-[#8B7D6B]">你的原文</div>
-                            <div className="px-3 py-2 text-sm text-[#5D4E37]">{item.original}</div>
-                            <div className="bg-[#FF6B8A]/5 px-3 py-2 text-xs font-medium text-[#FF6B8A]">建议改为</div>
-                            <div className="px-3 py-2 text-sm text-[#5D4E37]">{item.suggestion}</div>
-                            <div className="bg-[#A8D8EA]/10 px-3 py-2 text-xs text-[#5D4E37]">
+                          <div
+                            key={i}
+                            className="rounded-xl overflow-hidden"
+                            style={{ border: '1px solid var(--glass-border)' }}
+                          >
+                            <div className="px-3 py-2 text-xs font-medium" style={{ background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)' }}>你的原文</div>
+                            <div className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{item.original}</div>
+                            <div className="px-3 py-2 text-xs font-medium" style={{ background: 'rgba(139, 92, 246, 0.08)', color: 'var(--accent-nebula)' }}>建议改为</div>
+                            <div className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{item.suggestion}</div>
+                            <div className="px-3 py-2 text-xs" style={{ background: 'rgba(6, 182, 212, 0.08)', color: 'var(--text-primary)' }}>
                               <span className="font-medium">原因：</span>{item.reason}
                             </div>
                           </div>
                         ))}
                       </div>
                     )}
-                  </div>
+                  </GlassCard>
+                )}
+
+                {/* 生活实例 */}
+                {result.realLifeExample && (
+                  <GlassCard hover={false} className="p-4">
+                    <h3 className="font-medium mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                      <Lightbulb size={16} style={{ color: 'rgba(134, 239, 172, 0.9)' }} />
+                      生活实例
+                    </h3>
+                    <p
+                      className="text-sm leading-relaxed rounded-xl p-3"
+                      style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'var(--text-primary)' }}
+                    >
+                      {result.realLifeExample}
+                    </p>
+                  </GlassCard>
+                )}
+
+                {/* 常见误区 */}
+                {result.commonMisconceptions && result.commonMisconceptions.length > 0 && (
+                  <GlassCard hover={false} className="p-4">
+                    <h3 className="font-medium mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                      <Star size={16} style={{ color: 'rgba(253, 186, 116, 0.9)' }} />
+                      常见误区
+                    </h3>
+                    <div className="space-y-2">
+                      {result.commonMisconceptions.map((m, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+                          <span className="shrink-0" style={{ color: 'rgba(253, 186, 116, 0.9)' }}>{i + 1}.</span>
+                          {m}
+                        </div>
+                      ))}
+                    </div>
+                  </GlassCard>
                 )}
 
                 {/* 记忆口诀 */}
-                <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
-                  <h3 className="font-medium text-[#5D4E37] mb-2 flex items-center gap-1.5">
-                    <Star size={16} className="text-[#FFD93D]" />
+                <GlassCard hover={false} className="p-4">
+                  <h3 className="font-medium mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                    <Star size={16} style={{ color: 'var(--accent-aurora)' }} />
                     记忆口诀
                   </h3>
-                  <p className="text-sm text-[#5D4E37] leading-relaxed bg-[#FFF8F0] rounded-xl p-3 font-medium">
+                  <p
+                    className="text-sm leading-relaxed rounded-xl p-3 font-medium"
+                    style={{ background: 'rgba(255,255,255,0.03)', color: 'var(--text-primary)' }}
+                  >
                     {result.memoryTip}
                   </p>
-                </div>
+                </GlassCard>
 
-                <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
-                  <span className="text-xs text-[#8B7D6B]">你的解释</span>
-                  <p className="text-sm text-[#5D4E37] mt-1">{explanation}</p>
-                </div>
+                <GlassCard hover={false} className="p-4">
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>你的解释</span>
+                  <p className="text-sm mt-1" style={{ color: 'var(--text-primary)' }}>{explanation}</p>
+                </GlassCard>
 
                 <button
                   onClick={handleReset}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-[#F0E6D8] hover:bg-[#FFF0E6] text-[#5D4E37] rounded-xl font-medium"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors"
+                  style={{
+                    background: 'var(--glass-bg)',
+                    border: '1px solid var(--glass-border)',
+                    color: 'var(--text-primary)',
+                  }}
                 >
                   <RotateCcw size={18} /> 再来一张
                 </button>
@@ -320,21 +450,25 @@ export default function FeynmanPage() {
             )}
 
             {history.length > 0 && !result && (
-              <div className="bg-white rounded-2xl border border-[#F0E6D8] p-4">
-                <h3 className="font-medium text-[#5D4E37] mb-3">历史记录</h3>
+              <GlassCard hover={false} className="p-4">
+                <h3 className="font-medium mb-3" style={{ color: 'var(--text-primary)' }}>历史记录</h3>
                 <div className="space-y-2">
                   {history.map((h, i) => (
-                    <div key={i} className="flex items-center gap-3 p-2 bg-[#FFF8F0] rounded-lg">
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 p-2 rounded-lg"
+                      style={{ background: 'rgba(255,255,255,0.03)' }}
+                    >
                       <span className={`text-lg font-bold ${scoreColor(h.score)}`}>{h.score}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#5D4E37] truncate">{h.concept}</p>
-                        <p className="text-xs text-[#8B7D6B] truncate">{h.explanation}</p>
+                        <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{h.concept}</p>
+                        <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{h.explanation}</p>
                       </div>
-                      <span className="text-xs text-[#8B7D6B] shrink-0">{h.level}</span>
+                      <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>{h.level}</span>
                     </div>
                   ))}
                 </div>
-              </div>
+              </GlassCard>
             )}
           </div>
         </div>

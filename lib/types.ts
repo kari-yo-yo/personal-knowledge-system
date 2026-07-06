@@ -22,6 +22,7 @@ export interface Content {
   tags: any
   createdAt: string
   updatedAt: string
+  node?: Node
 }
 
 export interface Edge {
@@ -84,6 +85,21 @@ export interface UserPreference {
   keyword: string
   preferredNodeId: string
   count: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DailySummary {
+  id: string
+  userId: string
+  date: string
+  content: string
+  highlights: string[]
+  learnings: string[]
+  tomorrowGoal: string
+  mood: '😊' | '😐' | '😢' | '🔥' | '💪'
+  nodeIds: string[]
+  tags: string[]
   createdAt: string
   updatedAt: string
 }

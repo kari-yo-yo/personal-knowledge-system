@@ -74,7 +74,7 @@ export function ContentEditor({
   const getFileIcon = (fileType: string) => {
     if (fileType?.startsWith('image/')) return <Image size={14} className="text-[#FF6B8A]" />
     if (fileType?.includes('pdf')) return <FileText size={14} className="text-red-500" />
-    return <File size={14} className="text-[#8B7355]" />
+    return <File size={14} className="text-[var(--text-muted)]" />
   }
 
   const formatSize = (bytes: number) => {
@@ -84,8 +84,8 @@ export function ContentEditor({
   }
 
   return (
-    <div className="border border-slate-200 rounded-lg bg-white">
-      <div className="flex items-center gap-1 p-2 border-b border-slate-200 flex-wrap">
+    <div className="border border-[var(--glass-border)] rounded-lg bg-[var(--bg-surface)]">
+      <div className="flex items-center gap-1 p-2 border-b border-[var(--glass-border)] flex-wrap">
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           isActive={editor.isActive('bold')}
@@ -154,25 +154,25 @@ export function ContentEditor({
             {attachments.map((attach) => (
               <div
                 key={attach.id}
-                className="flex items-center gap-2 px-3 py-2 bg-[#FFF8F0] rounded-lg border text-sm"
-                style={{ borderColor: '#F0E6D8' }}
+                className="flex items-center gap-2 px-3 py-2 bg-[rgba(255,255,255,0.05)] rounded-lg border text-sm"
+                style={{ borderColor: 'var(--glass-border)' }}
               >
                 {getFileIcon(attach.fileType)}
                 <a
                   href={attach.fileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[#5D4E37] hover:text-[#FF6B8A] truncate max-w-[200px]"
+                  className="text-[var(--text-primary)] hover:text-[#FF6B8A] truncate max-w-[200px]"
                 >
                   {attach.fileName}
                 </a>
-                <span className="text-xs text-[#8B7355]">{formatSize(attach.fileSize)}</span>
+                <span className="text-xs text-[var(--text-muted)]">{formatSize(attach.fileSize)}</span>
                 <button
                   onClick={() => removeAttachment(attach.id)}
-                  className="p-0.5 hover:bg-[#F0E6D8] rounded"
+                  className="p-0.5 hover:bg-[var(--glass-border)] rounded"
                   type="button"
                 >
-                  <X size={12} className="text-[#8B7355]" />
+                  <X size={12} className="text-[var(--text-muted)]" />
                 </button>
               </div>
             ))}

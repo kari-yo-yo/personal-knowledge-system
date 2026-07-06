@@ -3,69 +3,143 @@
 import { useEffect, useRef, useCallback } from 'react'
 import p5 from 'p5'
 
-interface NodeData { id: string; name: string; parentId: string | null; color: string | null; children?: NodeData[] }
-interface ContentData { nodeId: string }
-interface EdgeData { id: string; sourceId: string; targetId: string; label?: string | null }
+/* ── Types ── */
+interface NodeData {
+  id: string
+  name: string
+  parentId: string | null
+  color: string | null
+  children?: NodeData[]
+}
+
+interface ContentData {
+  nodeId: string
+}
+
+interface EdgeData {
+  id: string
+  sourceId: string
+  targetId: string
+  label?: string | null
+}
 
 interface StarNode {
-  id: string; name: string; x: number; y: number; level: number
-  brightness: number   // 0=dim (6th mag), 1=medium (3rd mag), 2=bright (1st mag)
-  radius: number; glowRadius: number; noteCount: number; parentId: string | null
-  twinklePhase: number; twinkleSpeed: number
-  colorR: number; colorG: number; colorB: number  // natural star color temperature
+  id: string
+  name: string
+  x: number
+  y: number
+  level: number
+  brightness: number // 0=dim, 1=medium, 2=bright
+  radius: number
+  glowRadius: number
+  noteCount: number
+  parentId: string | null
+  twinklePhase: number
+  twinkleSpeed: number
+  colorR: number
+  colorG: number
+  colorB: number
 }
 
 interface StarEdge {
-  sourceId: string; targetId: string; type: 'tree' | 'custom'
-  flowOffset: number; flowSpeed: number
+  sourceId: string
+  targetId: string
+  type: 'tree' | 'custom'
+  flowOffset: number
+  flowSpeed: number
+}
+
+interface BgStar {
+  x: number
+  y: number
+  size: number
+  baseAlpha: number
+  speed: number
+  colorIdx: number
+  driftX: number
+  driftY: number
+}
+
+interface Meteor {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  length: number
+  alpha: number
+  life: number
+  maxLife: number
+}
+
+interface Nebula {
+  x: number
+  y: number
+  radius: number
+  colorR: number
+  colorG: number
+  colorB: number
+  alpha: number
+  pulsePhase: number
+  pulseSpeed: number
 }
 
 interface Props {
-  nodes: NodeData[]; contents: ContentData[]; edges: EdgeData[]
-  onNodeClick?: (nodeId: string) => void; onNodeDoubleClick?: (nodeId: string) => void
+  nodes: NodeData[]
+  contents: ContentData[]
+  edges: EdgeData[]
+  onNodeClick?: (nodeId: string) => void
+  onNodeDoubleClick?: (nodeId: string) => void
 }
 
-// ── Real night sky palette ──
-const BG_COLOR = '#000000'
-
-// Natural star color temperatures (like real stars)
+/* ── Palette ── */
 const STAR_TEMPS: [number, number, number][] = [
-  [255, 245, 230],  // warm white (#FFF5E6) - K/G type
-  [232, 240, 255],  // cool white (#E8F0FF) - A/F type
-  [255, 250, 205],  // pale yellow (#FFFACD) - G type
-  [214, 229, 255],  // pale blue (#D6E5FF) - B type
-  [255, 255, 255],  // pure white - Vega-like
-  [255, 248, 240],  // slightly warm white
-  [220, 235, 255],  // blue-white
+  [255, 245, 230],
+  [232, 240, 255],
+  [255, 250, 205],
+  [214, 229, 255],
+  [255, 255, 255],
+  [255, 248, 240],
+  [220, 235, 255],
 ]
 
 function getStarBrightness(noteCount: number): number {
-  if (noteCount >= 4) return 2       // 1st magnitude star
-  if (noteCount >= 1) return 1       // 3rd magnitude star
-  return 0                            // 6th magnitude star
+  if (noteCount >= 4) return 2
+  if (noteCount >= 1) return 1
+  return 0
 }
 
 function getStarColor(): [number, number, number] {
   return STAR_TEMPS[Math.floor(Math.random() * STAR_TEMPS.length)]
 }
 
-function flattenNodes(nodeList: NodeData[]): NodeData[] {
+function flattenNodes(list: NodeData[]): NodeData[] {
   const result: NodeData[] = []
-  function collect(list: NodeData[]) {
-    list.forEach((n) => { result.push(n); if (n.children?.length) collect(n.children) })
+  function collect(nodes: NodeData[]) {
+    nodes.forEach((n) => {
+      result.push(n)
+      if (n.children?.length) collect(n.children)
+    })
   }
-  collect(nodeList)
+  collect(list)
   return result
 }
 
-function buildData(nodes: NodeData[], contents: ContentData[], edges: EdgeData[]): { stars: StarNode[]; connections: StarEdge[] } {
+function buildData(
+  nodes: NodeData[],
+  contents: ContentData[],
+  edges: EdgeData[]
+): { stars: StarNode[]; connections: StarEdge[] } {
   const allNodes = flattenNodes(nodes)
   const noteCounts = new Map<string, number>()
   contents.forEach((c) => noteCounts.set(c.nodeId, (noteCounts.get(c.nodeId) || 0) + 1))
 
   const childrenMap = new Map<string, string[]>()
   allNodes.forEach((n) => {
-    if (n.parentId) { const s = childrenMap.get(n.parentId) || []; s.push(n.id); childrenMap.set(n.parentId, s) }
+    if (n.parentId) {
+      const s = childrenMap.get(n.parentId) || []
+      s.push(n.id)
+      childrenMap.set(n.parentId, s)
+    }
   })
 
   const levels = new Map<string, number>()
@@ -89,8 +163,15 @@ function buildData(nodes: NodeData[], contents: ContentData[], edges: EdgeData[]
     while (bfs.length) {
       const cur = bfs.shift()!
       ordered.push(cur)
-      const chs = (childrenMap.get(cur.id) || []).map((cid) => allNodes.find((n) => n.id === cid)!).filter(Boolean)
-      chs.forEach((c) => { if (!visited.has(c.id)) { visited.add(c.id); bfs.push(c) } })
+      const chs = (childrenMap.get(cur.id) || [])
+        .map((cid) => allNodes.find((n) => n.id === cid)!)
+        .filter(Boolean)
+      chs.forEach((c) => {
+        if (!visited.has(c.id)) {
+          visited.add(c.id)
+          bfs.push(c)
+        }
+      })
     }
     let idx = 0
     ordered.forEach((node) => {
@@ -99,13 +180,14 @@ function buildData(nodes: NodeData[], contents: ContentData[], edges: EdgeData[]
       const level = levels.get(node.id) || 1
       const r = A + B * Math.log(level + 1)
       const theta = idx * GA + level * 0.5
-      const nx = (Math.sin(idx * 3.7) * 12) + (Math.cos(idx * 7.3) * 8)
-      const ny = (Math.cos(idx * 5.1) * 12) + (Math.sin(idx * 2.9) * 8)
+      const nx = Math.sin(idx * 3.7) * 12 + Math.cos(idx * 7.3) * 8
+      const ny = Math.cos(idx * 5.1) * 12 + Math.sin(idx * 2.9) * 8
       positions.set(node.id, { x: Math.cos(theta) * r + nx, y: Math.sin(theta) * r + ny })
     })
     allNodes.forEach((n) => {
       if (!positions.has(n.id)) {
-        const ang = Math.random() * Math.PI * 2, d = A + B * 3 + Math.random() * 100
+        const ang = Math.random() * Math.PI * 2
+        const d = A + B * 3 + Math.random() * 100
         positions.set(n.id, { x: Math.cos(ang) * d, y: Math.sin(ang) * d })
       }
     })
@@ -128,26 +210,49 @@ function buildData(nodes: NodeData[], contents: ContentData[], edges: EdgeData[]
     const childBonus = Math.min(childCount * 0.2, 1.5)
 
     return {
-      id: node.id, name: node.name, x: pos.x, y: pos.y, level, brightness,
+      id: node.id,
+      name: node.name,
+      x: pos.x,
+      y: pos.y,
+      level,
+      brightness,
       radius: baseR + noteBonus + childBonus,
       glowRadius: (baseR + noteBonus + childBonus) * (brightness === 2 ? 4 : brightness === 1 ? 2.8 : 1.8),
-      noteCount, parentId: node.parentId,
+      noteCount,
+      parentId: node.parentId,
       twinklePhase: Math.random() * Math.PI * 2,
       twinkleSpeed: 0.8 + Math.random() * 2.5,
-      colorR: col[0], colorG: col[1], colorB: col[2],
+      colorR: col[0],
+      colorG: col[1],
+      colorB: col[2],
     }
   })
 
   const connections: StarEdge[] = []
   allNodes.forEach((n) => {
-    if (n.parentId) connections.push({ sourceId: n.parentId, targetId: n.id, type: 'tree', flowOffset: Math.random(), flowSpeed: 0.15 + Math.random() * 0.25 })
+    if (n.parentId)
+      connections.push({
+        sourceId: n.parentId,
+        targetId: n.id,
+        type: 'tree',
+        flowOffset: Math.random(),
+        flowSpeed: 0.15 + Math.random() * 0.25,
+      })
   })
-  edges.forEach((e) => connections.push({ sourceId: e.sourceId, targetId: e.targetId, type: 'custom', flowOffset: Math.random(), flowSpeed: 0.2 + Math.random() * 0.3 }))
+  edges.forEach((e) =>
+    connections.push({
+      sourceId: e.sourceId,
+      targetId: e.targetId,
+      type: 'custom',
+      flowOffset: Math.random(),
+      flowSpeed: 0.2 + Math.random() * 0.3,
+    })
+  )
 
   return { stars, connections }
 }
 
-export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDoubleClick }: Props) {
+export function StarCanvas({ nodes, contents, edges, onNodeClick, onNodeDoubleClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const p5Ref = useRef<p5 | null>(null)
   const dataRef = useRef(buildData(nodes, contents, edges))
@@ -175,9 +280,12 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
     let autoRotate = false, autoRotateSpeed = 0.0004
     let showLabels = true, showEdges = true
 
-    let bgStars: { x: number; y: number; size: number; baseAlpha: number; speed: number; colorIdx: number }[] = []
+    let bgStars: BgStar[] = []
+    let meteors: Meteor[] = []
+    let nebulae: Nebula[] = []
+    let nextMeteorTime = 0
 
-    // ── Touch state ──
+    // Touch state
     let touchStartTime = 0
     let touchStartPos = { x: 0, y: 0 }
     let lastTouchPos = { x: 0, y: 0 }
@@ -202,17 +310,78 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
     function generateStars() {
       bgStars = []
       const isMobile = window.innerWidth < 768
-      const count = isMobile ? 300 : 800
+      const count = isMobile ? 300 : 500
       for (let i = 0; i < count; i++) {
         const tempIdx = Math.floor(Math.random() * STAR_TEMPS.length)
         bgStars.push({
-          x: p.random(-5000, 5000), y: p.random(-5000, 5000),
-          size: p.random() < 0.92 ? p.random(0.2, 1.5) : p.random(1.5, 2.8), // most tiny, few visible
+          x: p.random(-5000, 5000),
+          y: p.random(-5000, 5000),
+          size: p.random() < 0.92 ? p.random(0.2, 1.5) : p.random(1.5, 2.8),
           baseAlpha: p.random() < 0.8 ? p.random(15, 80) : p.random(80, 200),
           speed: 0.3 + Math.random() * 2,
           colorIdx: tempIdx,
+          driftX: (Math.random() - 0.5) * 0.02,
+          driftY: (Math.random() - 0.5) * 0.02,
         })
       }
+    }
+
+    function generateNebulae() {
+      nebulae = []
+      const nebulaColors: [number, number, number][] = [
+        [60, 40, 80],
+        [40, 50, 90],
+        [50, 35, 70],
+      ]
+      for (let i = 0; i < 3; i++) {
+        const col = nebulaColors[i]
+        nebulae.push({
+          x: p.random(-800, 800),
+          y: p.random(-800, 800),
+          radius: p.random(200, 500),
+          colorR: col[0],
+          colorG: col[1],
+          colorB: col[2],
+          alpha: p.random(3, 8),
+          pulsePhase: Math.random() * Math.PI * 2,
+          pulseSpeed: 0.2 + Math.random() * 0.3,
+        })
+      }
+    }
+
+    function spawnMeteor() {
+      const startSide = Math.floor(Math.random() * 4)
+      let mx = 0, my = 0, mvx = 0, mvy = 0
+      const speed = p.random(8, 20)
+      const angle = p.random(Math.PI * 0.1, Math.PI * 0.4)
+
+      switch (startSide) {
+        case 0: // top
+          mx = p.random(0, cw); my = -50
+          mvx = Math.cos(angle) * speed; mvy = Math.sin(angle) * speed
+          break
+        case 1: // right
+          mx = cw + 50; my = p.random(0, ch)
+          mvx = -Math.cos(angle) * speed; mvy = Math.sin(angle) * speed
+          break
+        case 2: // bottom
+          mx = p.random(0, cw); my = ch + 50
+          mvx = Math.cos(angle) * speed; mvy = -Math.sin(angle) * speed
+          break
+        case 3: // left
+          mx = -50; my = p.random(0, ch)
+          mvx = Math.cos(angle) * speed; mvy = Math.sin(angle) * speed
+          break
+      }
+
+      meteors.push({
+        x: mx, y: my,
+        vx: mvx, vy: mvy,
+        length: p.random(60, 150),
+        alpha: p.random(0.6, 1.0),
+        life: 0,
+        maxLife: p.random(30, 60),
+      })
     }
 
     function project(wx: number, wy: number) {
@@ -241,7 +410,10 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
         const dx = world.x - node.x, dy = world.y - node.y
         const d2 = dx * dx + dy * dy
         const hitR = node.radius + (node.brightness === 0 ? 6 : 10)
-        if (d2 < bestD && d2 < hitR * hitR) { bestD = d2; best = node }
+        if (d2 < bestD && d2 < hitR * hitR) {
+          bestD = d2
+          best = node
+        }
       }
       return best
     }
@@ -261,7 +433,6 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
 
     function drawStarCore(x: number, y: number, r: number, cr: number, cg: number, cb: number, twinkle: number, brightness: number) {
       const ctx = p.drawingContext as CanvasRenderingContext2D
-      // Brighter stars have a more concentrated core
       const coreWhite = brightness === 2 ? 1.0 : brightness === 1 ? 0.85 : 0.5
       const grad = ctx.createRadialGradient(x, y, 0, x, y, r)
       grad.addColorStop(0, `rgba(255,255,255,${coreWhite * twinkle})`)
@@ -301,7 +472,8 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
       const now = Date.now()
       if (lastClickNode === node.id && now - lastClickTime < 350) {
         cbRef.current.onNodeDoubleClick?.(node.id)
-        lastClickTime = 0; lastClickNode = null
+        lastClickTime = 0
+        lastClickNode = null
         return true
       }
       return false
@@ -312,30 +484,46 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
       if (now - lastClickTime < 350 && lastClickNode === null) {
         const { stars } = dataRef.current
         const root = stars.find((n) => n.level === 0)
-        if (root) { targetCamX = root.x; targetCamY = root.y }
-        targetZoom = 1.0; targetRotZ = 0; targetTiltX = Math.PI / 3
-        selectedNodeId = null; clickedNodeId = null; focusing = true
-        lastClickTime = 0; lastClickNode = null
+        if (root) {
+          targetCamX = root.x
+          targetCamY = root.y
+        }
+        targetZoom = 1.0
+        targetRotZ = 0
+        targetTiltX = Math.PI / 3
+        selectedNodeId = null
+        clickedNodeId = null
+        focusing = true
+        lastClickTime = 0
+        lastClickNode = null
         return true
       }
       return false
     }
 
     function selectNode(node: StarNode) {
-      lastClickTime = Date.now(); lastClickNode = node.id
+      lastClickTime = Date.now()
+      lastClickNode = node.id
       selectedNodeId = selectedNodeId === node.id ? null : node.id
       clickedNodeId = node.id
       cbRef.current.onNodeClick?.(node.id)
-      targetCamX = node.x; targetCamY = node.y; targetZoom = 2.5; focusing = true
+      targetCamX = node.x
+      targetCamY = node.y
+      targetZoom = 2.5
+      focusing = true
     }
 
     function startDragFrom(x: number, y: number, shift: boolean) {
       isDragging = true
       isShiftDrag = shift
-      dragSX = x; dragSY = y
-      dragStartRZ = targetRotZ; dragStartTX = targetTiltX
-      dragStartCX = camX; dragStartCY = camY
-      selectedNodeId = null; clickedNodeId = null
+      dragSX = x
+      dragSY = y
+      dragStartRZ = targetRotZ
+      dragStartTX = targetTiltX
+      dragStartCX = camX
+      dragStartCY = camY
+      selectedNodeId = null
+      clickedNodeId = null
     }
 
     function applyZoom(zf: number, cx: number, cy: number) {
@@ -352,21 +540,28 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
     p.setup = () => {
       const c = containerRef.current
       if (!c) return
-      cw = c.clientWidth; ch = c.clientHeight
+      cw = c.clientWidth
+      ch = c.clientHeight
       const canvas = p.createCanvas(cw, ch)
       canvas.parent(c)
       p.pixelDensity(Math.min(window.devicePixelRatio, 2))
       generateStars()
+      generateNebulae()
+      nextMeteorTime = p.millis() + p.random(5000, 15000)
       const { stars } = dataRef.current
       const root = stars.find((n) => n.level === 0)
-      if (root) { camX = targetCamX = root.x; camY = targetCamY = root.y }
+      if (root) {
+        camX = targetCamX = root.x
+        camY = targetCamY = root.y
+      }
 
-      // Prevent browser touch defaults on canvas
       const el = canvas.elt as HTMLCanvasElement
       el.style.touchAction = 'none'
       el.style.userSelect = 'none'
       el.style.webkitUserSelect = 'none'
-      el.addEventListener('touchmove', (e: TouchEvent) => { e.preventDefault() }, { passive: false })
+      el.addEventListener('touchmove', (e: TouchEvent) => {
+        e.preventDefault()
+      }, { passive: false })
     }
 
     p.draw = () => {
@@ -379,23 +574,52 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
       if (focusing) {
         camX += (targetCamX - camX) * 0.06
         camY += (targetCamY - camY) * 0.06
-        if (Math.abs(camX - targetCamX) < 1 && Math.abs(camY - targetCamY) < 1 && Math.abs(targetZoom - zoom) < 0.05) focusing = false
+        if (
+          Math.abs(camX - targetCamX) < 1 &&
+          Math.abs(camY - targetCamY) < 1 &&
+          Math.abs(targetZoom - zoom) < 0.05
+        ) {
+          focusing = false
+        }
       }
-      if (autoRotate && !isDragging && !isTouchDragging && !isTwoFinger && !focusing) targetRotZ += autoRotateSpeed
+      if (autoRotate && !isDragging && !isTouchDragging && !isTwoFinger && !focusing) {
+        targetRotZ += autoRotateSpeed
+      }
 
       const { stars, connections } = dataRef.current
 
-      // Pure black night sky
+      // Pure black sky
       p.background(0, 0, 0)
 
-      // ── Background stars ──
+      // ── Nebulae (very subtle, behind everything) ──
+      p.noStroke()
+      nebulae.forEach((neb) => {
+        const pulse = 0.7 + 0.3 * Math.sin(time * neb.pulseSpeed + neb.pulsePhase)
+        const sx = (neb.x - camX * 0.15) * zoom * 0.3 + cw / 2
+        const sy = (neb.y - camY * 0.15) * zoom * 0.3 + ch / 2
+        const sr = neb.radius * zoom * 0.3
+        if (sx < -sr || sx > cw + sr || sy < -sr || sy > ch + sr) return
+        const ctx = p.drawingContext as CanvasRenderingContext2D
+        const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr)
+        grad.addColorStop(0, `rgba(${neb.colorR},${neb.colorG},${neb.colorB},${neb.alpha * pulse * 0.01})`)
+        grad.addColorStop(0.5, `rgba(${neb.colorR},${neb.colorG},${neb.colorB},${neb.alpha * pulse * 0.005})`)
+        grad.addColorStop(1, `rgba(${neb.colorR},${neb.colorG},${neb.colorB},0)`)
+        ctx.fillStyle = grad
+        ctx.beginPath()
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2)
+        ctx.fill()
+      })
+
+      // ── Background stars with drift ──
       p.noStroke()
       bgStars.forEach((star) => {
+        // Slow drift
+        star.x += star.driftX
+        star.y += star.driftY
         const parallax = 0.2
         const sx = (star.x - camX * parallax) * zoom * 0.25 + cw / 2
         const sy = (star.y - camY * parallax) * zoom * 0.25 + ch / 2
         if (sx < -3 || sx > cw + 3 || sy < -3 || sy > ch + 3) return
-        // Atmospheric scintillation
         const twinkle = 0.4 + 0.6 * Math.sin(time * star.speed + star.x * 0.1)
         const alpha = star.baseAlpha * twinkle
         const sc = STAR_TEMPS[star.colorIdx]
@@ -405,7 +629,7 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
 
       const selectedNode = stars.find((n) => n.id === selectedNodeId)
 
-      // ── Connections (subtle white threads) ──
+      // ── Connections ──
       if (showEdges) {
         connections.forEach((conn) => {
           const source = stars.find((n) => n.id === conn.sourceId)
@@ -414,121 +638,142 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
           const s1 = project(source.x, source.y)
           const s2 = project(target.x, target.y)
           const margin = 60
-          if ((s1.x < -margin && s2.x < -margin) || (s1.x > cw + margin && s2.x > cw + margin) ||
-            (s1.y < -margin && s2.y < -margin) || (s1.y > ch + margin && s2.y > ch + margin)) return
-
-          const isHL = selectedNode && (conn.sourceId === selectedNode.id || conn.targetId === selectedNode.id)
-          const isDim = selectedNode && !isHL
+          if (
+            (s1.x < -margin && s2.x < -margin) ||
+            (s1.x > cw + margin && s2.x > cw + margin) ||
+            (s1.y < -margin && s2.y < -margin) ||
+            (s1.y > ch + margin && s2.y > ch + margin)
+          )
+            return
 
           const midX = (s1.x + s2.x) / 2, midY = (s1.y + s2.y) / 2
-          const off = 10 * zoom
+          const offset = 30 * zoom
+          const cx1 = s1.x + (midX - s1.x) * 0.3
+          const cy1 = s1.y + offset
+          const cx2 = s2.x + (midX - s2.x) * 0.7
+          const cy2 = s2.y + offset
 
-          // White/near-white lines, very subtle
           p.noFill()
-          p.strokeWeight(conn.type === 'custom' ? 0.8 : 0.5)
-          const lineAlpha = isDim ? 5 : isHL ? 50 : conn.type === 'custom' ? 25 : 15
+          const isTree = conn.type === 'tree'
+          const lineAlpha = isTree ? 12 : 8
           p.stroke(255, 255, 255, lineAlpha)
-          p.bezier(s1.x, s1.y, midX, midY - off, midX, midY - off, s2.x, s2.y)
+          p.strokeWeight(isTree ? 0.6 : 0.4)
+          p.bezier(s1.x, s1.y, cx1, cy1, cx2, cy2, s2.x, s2.y)
 
-          // Flow particle (tiny white dot)
-          if (!isDim) {
-            const t = (time * conn.flowSpeed + conn.flowOffset) % 1
-            const bp = bezierPoint(t, s1.x, s1.y, midX, midY - off, midX, midY - off, s2.x, s2.y)
-            const pAlpha = conn.type === 'custom' ? 120 : 60
-            p.noStroke()
-            p.fill(255, 255, 255, pAlpha)
-            p.circle(bp.x, bp.y, conn.type === 'custom' ? 1.5 : 1)
-          }
+          // Flow particles
+          const flowT = ((time * conn.flowSpeed + conn.flowOffset) % 1)
+          const fp = bezierPoint(flowT, s1.x, s1.y, cx1, cy1, cx2, cy2, s2.x, s2.y)
+          const pAlpha = Math.sin(flowT * Math.PI) * (isTree ? 140 : 100)
+          p.noStroke()
+          p.fill(255, 255, 255, pAlpha)
+          p.circle(fp.x, fp.y, isTree ? 2.2 : 1.5)
         })
       }
 
-      // ── Draw knowledge stars ──
-      stars.forEach((star) => {
-        const screen = project(star.x, star.y)
-        if (screen.x < -100 || screen.x > cw + 100 || screen.y < -100 || screen.y > ch + 100) return
+      // ── Star nodes ──
+      stars.forEach((node) => {
+        const s = project(node.x, node.y)
+        const margin = 40
+        if (s.x < -margin || s.x > cw + margin || s.y < -margin || s.y > ch + margin) return
 
-        const isHovered = hoveredNode?.id === star.id
-        const isSelected = selectedNodeId === star.id
-        const isConnected = selectedNode && (
-          selectedNode.id === star.id ||
-          connections.some((e) => (e.sourceId === selectedNode.id && e.targetId === star.id) || (e.targetId === selectedNode.id && e.sourceId === star.id))
-        )
-        const isDimmed = selectedNode && !isConnected
+        const isHovered = hoveredNode?.id === node.id
+        const isSelected = selectedNodeId === node.id
+        const twinkle = 0.6 + 0.4 * Math.sin(time * node.twinkleSpeed + node.twinklePhase)
+        const r = node.radius * zoom * (isHovered || isSelected ? 1.4 : 1)
 
-        // Natural twinkle (real stars scintillate)
-        const twinkle = 0.6 + 0.4 * Math.sin(time * star.twinkleSpeed + star.twinklePhase)
-        const scale = (isHovered || isSelected) ? 1.3 : 1
-        const glowR = star.glowRadius * zoom * scale
-        const nodeR = star.radius * zoom * scale
+        drawStarGlow(s.x, s.y, node.glowRadius * zoom, node.colorR, node.colorG, node.colorB, twinkle * 0.5)
+        drawStarCore(s.x, s.y, r, node.colorR, node.colorG, node.colorB, twinkle, node.brightness)
 
-        // Dim brightness for 6th mag stars, boost for brighter ones
-        const brightnessMul = star.brightness === 2 ? 1.0 : star.brightness === 1 ? 0.6 : 0.25
-        const glowAlpha = isDimmed ? 8 : isSelected ? 200 : isHovered ? 150 : 70 * twinkle * brightnessMul
-        const coreAlpha = isDimmed ? 0.3 : twinkle
-
-        // Glow halo (white, natural)
-        drawStarGlow(screen.x, screen.y, glowR, star.colorR, star.colorG, star.colorB, glowAlpha)
-
-        // Star core (white center → colored edge)
-        drawStarCore(screen.x, screen.y, nodeR, star.colorR, star.colorG, star.colorB, coreAlpha, star.brightness)
-
-        // Selection: soft white halo (NOT colored ring)
-        if (isSelected) drawSelectionHalo(screen.x, screen.y, nodeR, time)
+        if (isSelected) {
+          drawSelectionHalo(s.x, s.y, r, time)
+        }
 
         // Labels
-        if (showLabels && (zoom > 0.35 || isHovered || isSelected)) {
-          const la = isDimmed ? 20 : isHovered || isSelected ? 200 : Math.min(200, (zoom - 0.25) * 400)
-          if (la > 10) {
-            p.noStroke()
-            p.fill(255, 255, 255, la * 0.8)
-            p.textAlign(p.CENTER, p.TOP)
-            p.textSize(Math.max(9, 11 * zoom))
-            p.textFont('sans-serif')
-            p.text(star.name, screen.x, screen.y + nodeR + 6)
-            if (star.noteCount > 0) {
-              p.fill(255, 255, 255, la * 0.5)
-              p.textSize(Math.max(8, 9 * zoom))
-              p.text(`${star.noteCount} 笔记`, screen.x, screen.y + nodeR + 6 + Math.max(12, 14 * zoom))
-            }
-          }
+        if (showLabels && (isHovered || isSelected || node.brightness >= 1)) {
+          const labelAlpha = isHovered || isSelected ? 220 : 100
+          p.noStroke()
+          p.fill(255, 255, 255, labelAlpha)
+          p.textAlign(p.CENTER, p.TOP)
+          p.textSize(Math.max(9, 11 * Math.min(zoom, 1.5)))
+          p.text(node.name, s.x, s.y + r + 6)
         }
       })
 
-      // ── Clicked node info card (minimal, dark) ──
-      if (clickedNodeId) {
-        const star = stars.find((n) => n.id === clickedNodeId)
-        if (star) {
-          const screen = project(star.x, star.y)
-          const cardX = screen.x + 18, cardY = screen.y - 28
-          const pad = 10, lh = 18
-          p.textAlign(p.LEFT, p.TOP)
-          p.textSize(12)
-          const nw = p.textWidth(star.name)
-          const nt = star.noteCount > 0 ? `${star.noteCount} 条笔记` : '暂无笔记'
-          const nw2 = p.textWidth(nt)
-          const bw = Math.max(nw, nw2) + pad * 2
-          const bh = lh * 2 + pad * 2
+      // ── Info card for selected node ──
+      if (selectedNode) {
+        const s = project(selectedNode.x, selectedNode.y)
+        const cardW = 180, cardH = 70
+        let cx = s.x + 20, cy = s.y - 20
+        if (cx + cardW > cw) cx = s.x - cardW - 20
+        if (cy + cardH > ch) cy = s.y - cardH - 20
+        if (cy < 10) cy = 10
 
-          p.fill(0, 0, 0, 200)
-          p.stroke(255, 255, 255, 30)
-          p.strokeWeight(1)
-          p.rect(cardX, cardY, bw, bh, 6)
+        p.noStroke()
+        p.fill(0, 0, 0, 200)
+        p.rect(cx, cy, cardW, cardH, 8)
+        p.stroke(255, 255, 255, 30)
+        p.strokeWeight(0.5)
+        p.noFill()
+        p.rect(cx, cy, cardW, cardH, 8)
 
-          // Thin white accent line
-          p.noStroke()
-          p.fill(255, 255, 255, 80)
-          p.rect(cardX, cardY, 2, bh, 6, 0, 0, 6)
+        p.noStroke()
+        p.fill(255, 255, 255, 230)
+        p.textAlign(p.LEFT, p.TOP)
+        p.textSize(12)
+        p.text(selectedNode.name, cx + 10, cy + 8)
+        p.fill(255, 255, 255, 150)
+        p.textSize(9)
+        p.text(`笔记: ${selectedNode.noteCount}`, cx + 10, cy + 26)
+        p.text('双击进入详情', cx + 10, cy + 40)
+      }
 
-          p.fill(255, 255, 255, 220)
-          p.noStroke()
-          p.text(star.name, cardX + pad + 4, cardY + pad)
-          p.fill(255, 255, 255, 120)
-          p.textSize(10)
-          p.text(nt, cardX + pad + 4, cardY + pad + lh)
+      // ── Meteors ──
+      for (let i = meteors.length - 1; i >= 0; i--) {
+        const m = meteors[i]
+        m.x += m.vx
+        m.y += m.vy
+        m.life++
+
+        const tailX = m.x - m.vx * (m.length / Math.sqrt(m.vx * m.vx + m.vy * m.vy))
+        const tailY = m.y - m.vy * (m.length / Math.sqrt(m.vx * m.vx + m.vy * m.vy))
+        const lifeRatio = 1 - m.life / m.maxLife
+        const alpha = m.alpha * lifeRatio
+
+        if (alpha <= 0 || m.x < -200 || m.x > cw + 200 || m.y < -200 || m.y > ch + 200) {
+          meteors.splice(i, 1)
+          continue
         }
+
+        const ctx = p.drawingContext as CanvasRenderingContext2D
+        const grad = ctx.createLinearGradient(m.x, m.y, tailX, tailY)
+        grad.addColorStop(0, `rgba(255,255,255,${alpha})`)
+        grad.addColorStop(0.3, `rgba(255,245,230,${alpha * 0.6})`)
+        grad.addColorStop(1, `rgba(255,255,255,0)`)
+        ctx.strokeStyle = grad
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(m.x, m.y)
+        ctx.lineTo(tailX, tailY)
+        ctx.stroke()
+
+        // Head glow
+        const headGrad = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 4)
+        headGrad.addColorStop(0, `rgba(255,255,255,${alpha})`)
+        headGrad.addColorStop(1, `rgba(255,255,255,0)`)
+        ctx.fillStyle = headGrad
+        ctx.beginPath()
+        ctx.arc(m.x, m.y, 4, 0, Math.PI * 2)
+        ctx.fill()
+      }
+
+      // Spawn meteors
+      if (p.millis() > nextMeteorTime) {
+        spawnMeteor()
+        nextMeteorTime = p.millis() + p.random(8000, 30000)
       }
     }
 
+    // ── Mouse events ──
     p.mousePressed = () => {
       if (p.mouseX < 0 || p.mouseX > cw || p.mouseY < 0 || p.mouseY > ch) return
       const node = getNodeAt(p.mouseX, p.mouseY)
@@ -543,24 +788,32 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
 
     p.mouseDragged = () => {
       if (!isDragging) return
-      const dx = p.mouseX - dragSX, dy = p.mouseY - dragSY
       if (isShiftDrag) {
-        const cosR = Math.cos(-rotZ), sinR = Math.sin(-rotZ)
-        targetCamX = dragStartCX - (cosR * dx - sinR * (dy / Math.cos(tiltX))) / zoom
-        targetCamY = dragStartCY - (sinR * dx + cosR * (dy / Math.cos(tiltX))) / zoom
+        const dx = (p.mouseX - dragSX) / zoom
+        const dy = (p.mouseY - dragSY) / zoom
+        targetCamX = dragStartCX - dx
+        targetCamY = dragStartCY - dy
       } else {
+        const dx = p.mouseX - dragSX, dy = p.mouseY - dragSY
         targetRotZ = dragStartRZ - dx * 0.008
         targetTiltX = Math.max(0.05, Math.min(Math.PI / 2 - 0.05, dragStartTX + dy * 0.008))
       }
     }
 
-    p.mouseReleased = () => { isDragging = false }
+    p.mouseReleased = () => {
+      isDragging = false
+    }
 
     p.mouseMoved = () => {
-      if (p.mouseX < 0 || p.mouseX > cw || p.mouseY < 0 || p.mouseY > ch) { if (hoveredNode) hoveredNode = null; return }
+      if (p.mouseX < 0 || p.mouseX > cw || p.mouseY < 0 || p.mouseY > ch) {
+        if (hoveredNode) hoveredNode = null
+        return
+      }
       const node = getNodeAt(p.mouseX, p.mouseY)
       if (node?.id !== hoveredNode?.id) hoveredNode = node || null
-      if (containerRef.current) containerRef.current.style.cursor = hoveredNode ? 'pointer' : 'grab'
+      if (containerRef.current) {
+        containerRef.current.style.cursor = hoveredNode ? 'pointer' : 'grab'
+      }
     }
 
     p.mouseWheel = (event: WheelEvent) => {
@@ -576,14 +829,15 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
       if (touches.length === 0) return false
       const t0 = touches[0]
 
-      // If single-finger was active and now second finger joins → upgrade to two-finger
+      // Upgrade single-finger to two-finger
       if (isTouchDragging && !isTwoFinger && touches.length >= 2) {
         const t1 = touches[1]
         isTwoFinger = true
         isTouchDragging = false
         singleFingerMoved = false
         isDragging = false
-        selectedNodeId = null; clickedNodeId = null
+        selectedNodeId = null
+        clickedNodeId = null
         twoFingerStartDist = Math.sqrt((t1.x - t0.x) ** 2 + (t1.y - t0.y) ** 2)
         twoFingerPrevDist = twoFingerStartDist
         twoFingerStartAngle = Math.atan2(t1.y - t0.y, t1.x - t0.x)
@@ -619,7 +873,6 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
         twoFingerPrevCenter = { x: cx, y: cy }
       } else {
         isTouchDragging = true
-        // Don't call startDragFrom yet — wait until movement exceeds threshold
       }
       return false
     }
@@ -632,11 +885,10 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
         const d = Math.sqrt((t1.x - t0.x) ** 2 + (t1.y - t0.y) ** 2)
         const cx = (t0.x + t1.x) / 2, cy = (t0.y + t1.y) / 2
 
-        // ── Pinch zoom (incremental from previous frame, not start) ──
+        // Pinch zoom (incremental)
         if (twoFingerPrevDist > 0) {
           const scale = d / twoFingerPrevDist
           const nz = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, twoFingerPrevZoom * scale))
-          // Zoom toward pinch center
           const wb = unproject(cx, cy)
           targetZoom = nz
           const wa = unproject(cx, cy)
@@ -645,12 +897,11 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
           twoFingerPrevZoom = targetZoom
         }
 
-        // ── Two-finger rotation → rotZ ──
+        // Two-finger rotation → rotZ
         const angle = Math.atan2(t1.y - t0.y, t1.x - t0.x)
-        const deltaAngle = angle - twoFingerStartAngle
-        targetRotZ = twoFingerStartRotZ + deltaAngle
+        targetRotZ = twoFingerStartRotZ + (angle - twoFingerStartAngle)
 
-        // ── Two-finger vertical slide → tiltX ──
+        // Two-finger vertical slide → tiltX
         const dy = cy - twoFingerCenterStart.y
         targetTiltX = Math.max(0.05, Math.min(Math.PI / 2 - 0.05, twoFingerStartTiltX - dy * 0.006))
 
@@ -665,14 +916,16 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
         const dy = t.y - touchStartPos.y
         const moveDist = Math.sqrt(dx * dx + dy * dy)
 
-        // Only start drag after exceeding threshold — prevents accidental drags on tap
         if (!singleFingerMoved && moveDist > DRAG_THRESHOLD) {
           singleFingerMoved = true
           isDragging = true
           isShiftDrag = false
-          dragSX = touchStartPos.x; dragSY = touchStartPos.y
-          dragStartRZ = targetRotZ; dragStartTX = targetTiltX
-          selectedNodeId = null; clickedNodeId = null
+          dragSX = touchStartPos.x
+          dragSY = touchStartPos.y
+          dragStartRZ = targetRotZ
+          dragStartTX = targetTiltX
+          selectedNodeId = null
+          clickedNodeId = null
         }
 
         if (singleFingerMoved) {
@@ -687,11 +940,9 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
     }
 
     ;(p as any).touchEnded = () => {
-      const wasTwoFinger = isTwoFinger
       const wasSingleDrag = isTouchDragging && !isTwoFinger
 
       if (wasSingleDrag && !singleFingerMoved) {
-        // This was a tap — check for node click
         const elapsed = Date.now() - touchStartTime
         if (elapsed < TAP_MAX_TIME) {
           const node = getNodeAt(touchStartPos.x, touchStartPos.y)
@@ -699,13 +950,13 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
             if (!tryDoubleClickNode(node)) selectNode(node)
           } else {
             if (!tryDoubleClickBackground()) {
-              selectedNodeId = null; clickedNodeId = null
+              selectedNodeId = null
+              clickedNodeId = null
             }
           }
         }
       }
 
-      // Reset all touch state
       isTouchDragging = false
       isTwoFinger = false
       isDragging = false
@@ -717,62 +968,93 @@ export function KnowledgeNebula({ nodes, contents, edges, onNodeClick, onNodeDou
     p.windowResized = () => {
       const c = containerRef.current
       if (!c) return
-      cw = c.clientWidth; ch = c.clientHeight
+      cw = c.clientWidth
+      ch = c.clientHeight
       p.resizeCanvas(cw, ch)
     }
 
-    ;(p as any).resetView = () => {
+    // ── External events ──
+    window.addEventListener('nebula-reset', () => {
       const { stars } = dataRef.current
       const root = stars.find((n) => n.level === 0)
-      if (root) { targetCamX = root.x; targetCamY = root.y; camX = root.x; camY = root.y }
-      targetZoom = 1; zoom = 1; targetRotZ = 0; rotZ = 0; targetTiltX = Math.PI / 3; tiltX = Math.PI / 3
-      selectedNodeId = null; clickedNodeId = null; focusing = true
-    }
-    ;(p as any).setAutoRotate = (v: boolean) => { autoRotate = v }
-    ;(p as any).setAutoRotateSpeed = (v: number) => { autoRotateSpeed = v }
-    ;(p as any).setPreset = (preset: string) => {
-      const { stars } = dataRef.current
-      const root = stars.find((n) => n.level === 0)
-      if (root) { targetCamX = root.x; targetCamY = root.y }
-      focusing = true
-      switch (preset) {
-        case 'overview': targetZoom = 1; targetRotZ = 0; targetTiltX = Math.PI / 3; break
-        case 'top': targetZoom = 1.3; targetRotZ = 0; targetTiltX = Math.PI / 2.1; break
-        case 'side': targetZoom = 1.2; targetRotZ = Math.PI / 2; targetTiltX = 0.15; break
+      if (root) {
+        targetCamX = root.x
+        targetCamY = root.y
       }
-    }
-    ;(p as any).setShowLabels = (v: boolean) => { showLabels = v }
-    ;(p as any).setShowEdges = (v: boolean) => { showEdges = v }
-    ;(p as any).getViewState = () => {
-      const tiltDeg = Math.round(tiltX * 180 / Math.PI)
-      const rotDeg = Math.round(((rotZ % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2)) * 180 / Math.PI)
-      return { tilt: tiltDeg, rot: rotDeg, zoom: Math.round(zoom * 100) / 100 }
+      targetZoom = 1.0
+      targetRotZ = 0
+      targetTiltX = Math.PI / 3
+      selectedNodeId = null
+      clickedNodeId = null
+      focusing = true
+    })
+    window.addEventListener('nebula-autorotate', (e: any) => {
+      autoRotate = !!e.detail
+    })
+    window.addEventListener('nebula-rotate-speed', (e: any) => {
+      autoRotateSpeed = e.detail
+    })
+    window.addEventListener('nebula-show-labels', (e: any) => {
+      showLabels = !!e.detail
+    })
+    window.addEventListener('nebula-show-edges', (e: any) => {
+      showEdges = !!e.detail
+    })
+    window.addEventListener('nebula-preset', (e: any) => {
+      focusing = true
+      const { stars } = dataRef.current
+      const root = stars.find((n) => n.level === 0)
+      if (!root) return
+      switch (e.detail) {
+        case 'overview':
+          targetCamX = root.x
+          targetCamY = root.y
+          targetZoom = 0.6
+          targetRotZ = 0
+          targetTiltX = Math.PI / 3
+          break
+        case 'top':
+          targetCamX = root.x
+          targetCamY = root.y
+          targetZoom = 1.2
+          targetTiltX = Math.PI / 2 - 0.05
+          break
+        case 'side':
+          targetCamX = root.x
+          targetCamY = root.y
+          targetZoom = 1.0
+          targetTiltX = 0.15
+          break
+      }
+    })
+
+    // Public API for React wrapper
+    ;(window as any).__nebulaInstance = {
+      getViewState: () => ({
+        tilt: Math.round((tiltX * 180) / Math.PI),
+        rot: Math.round((rotZ * 180) / Math.PI) % 360,
+        zoom: parseFloat(zoom.toFixed(2)),
+      }),
     }
   }, [])
 
   useEffect(() => {
-    if (!containerRef.current) return
-    const instance = new p5(sketch, containerRef.current)
+    const container = containerRef.current
+    if (!container) return
+    const instance = new p5(sketch, container)
     p5Ref.current = instance
-
-    const handlers: Array<[string, EventListener]> = [
-      ['nebula-reset', () => (instance as any).resetView?.()],
-      ['nebula-autorotate', ((e: CustomEvent) => (instance as any).setAutoRotate?.(e.detail)) as EventListener],
-      ['nebula-rotate-speed', ((e: CustomEvent) => (instance as any).setAutoRotateSpeed?.(e.detail)) as EventListener],
-      ['nebula-preset', ((e: CustomEvent) => (instance as any).setPreset?.(e.detail)) as EventListener],
-      ['nebula-show-labels', ((e: CustomEvent) => (instance as any).setShowLabels?.(e.detail)) as EventListener],
-      ['nebula-show-edges', ((e: CustomEvent) => (instance as any).setShowEdges?.(e.detail)) as EventListener],
-    ]
-
-    handlers.forEach(([name, fn]) => window.addEventListener(name, fn))
     return () => {
-      handlers.forEach(([name, fn]) => window.removeEventListener(name, fn))
       instance.remove()
       p5Ref.current = null
+      ;(window as any).__nebulaInstance = null
     }
   }, [sketch])
 
   return (
-    <div ref={containerRef} className="w-full h-full" style={{ background: BG_COLOR, cursor: 'grab' }} />
+    <div
+      ref={containerRef}
+      className="w-full h-full"
+      style={{ background: '#000000', touchAction: 'none' }}
+    />
   )
 }
