@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Tan dog happy/bouncing -->
+  <g transform="translate(25,15)">
+    <!-- Body (slightly tilted for bounce) -->
+    <ellipse cx="75" cy="138" rx="46" ry="36" fill="#F5D5A0" stroke="#333" stroke-width="3" transform="rotate(-5,75,138)"/>
+    <!-- Collar -->
+    <rect x="52" y="100" width="38" height="7" rx="3.5" fill="#FF6B6B" stroke="#333" stroke-width="2"/>
+    <!-- Head -->
+    <circle cx="75" cy="70" r="33" fill="#F5D5A0" stroke="#333" stroke-width="3"/>
+    <!-- Left ear (bouncing up) -->
+    <ellipse cx="43" cy="48" rx="14" ry="22" fill="#E8C07A" stroke="#333" stroke-width="3" transform="rotate(-25,43,48)"/>
+    <!-- Right ear (bouncing up) -->
+    <ellipse cx="107" cy="48" rx="14" ry="22" fill="#E8C07A" stroke="#333" stroke-width="3" transform="rotate(25,107,48)"/>
+    <!-- Eyes (big happy open) -->
+    <circle cx="62" cy="68" r="5" fill="#333"/>
+    <circle cx="63" cy="67" r="1.8" fill="white"/>
+    <circle cx="88" cy="68" r="5" fill="#333"/>
+    <circle cx="89" cy="67" r="1.8" fill="white"/>
+    <!-- Blush -->
+    <ellipse cx="52" cy="78" rx="8" ry="4" fill="#FFB6C1" opacity="0.5"/>
+    <ellipse cx="98" cy="78" rx="8" ry="4" fill="#FFB6C1" opacity="0.5"/>
+    <!-- Nose -->
+    <ellipse cx="75" cy="76" rx="4" ry="3" fill="#333"/>
+    <!-- Big smile -->
+    <path d="M66 82 Q75 95 84 82" stroke="#333" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <!-- Tongue -->
+    <ellipse cx="75" cy="89" rx="4" ry="6" fill="#FF9CAD"/>
+    <!-- Paws -->
+    <ellipse cx="48" cy="162" rx="12" ry="9" fill="#F5D5A0" stroke="#333" stroke-width="3"/>
+    <ellipse cx="100" cy="158" rx="12" ry="9" fill="#F5D5A0" stroke="#333" stroke-width="3"/>
+    <!-- Tail (wagging) -->
+    <path d="M120 125 Q140 108 142 90" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M142 90 Q145 82 140 78" stroke="#333" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <!-- Sparkles -->
+    <path d="M15 30 L17 24 L19 30 L25 32 L19 34 L17 40 L15 34 L9 32 Z" fill="#FFD93D"/>
+    <path d="M130 35 L131.5 30 L133 35 L138 36.5 L133 38 L131.5 43 L130 38 L125 36.5 Z" fill="#FFD93D" opacity="0.7"/>
+    <path d="M140 55 L141 52 L142 55 L145 56 L142 57 L141 60 L140 57 L137 56 Z" fill="#FFD93D" opacity="0.5"/>
+    <!-- Stars around -->
+    <text x="25" y="60" font-size="12" fill="#FFD93D">★</text>
+    <text x="125" y="60" font-size="10" fill="#FFD93D">★</text>
+  </g>
+</svg>

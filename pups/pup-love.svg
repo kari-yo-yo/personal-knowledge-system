@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Two dogs together (companionship/love) -->
+  <g transform="translate(10,20)">
+    <!-- White dog -->
+    <ellipse cx="55" cy="140" rx="38" ry="30" fill="white" stroke="#333" stroke-width="3"/>
+    <circle cx="55" cy="82" r="28" fill="white" stroke="#333" stroke-width="3"/>
+    <ellipse cx="32" cy="66" rx="10" ry="17" fill="white" stroke="#333" stroke-width="3" transform="rotate(-15,32,66)"/>
+    <ellipse cx="78" cy="66" rx="10" ry="17" fill="white" stroke="#333" stroke-width="3" transform="rotate(15,78,66)"/>
+    <!-- Happy closed eyes -->
+    <path d="M44 80 Q48 75 52 80" stroke="#333" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M58 80 Q62 75 66 80" stroke="#333" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="55" cy="87" rx="3" ry="2" fill="#333"/>
+    <path d="M51 91 Q55 96 59 91" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <ellipse cx="55" cy="94" rx="2.5" ry="3.5" fill="#FF9CAD"/>
+    <ellipse cx="38" cy="158" rx="9" ry="7" fill="white" stroke="#333" stroke-width="3"/>
+    <ellipse cx="72" cy="158" rx="9" ry="7" fill="white" stroke="#333" stroke-width="3"/>
+
+    <!-- Tan dog -->
+    <ellipse cx="135" cy="140" rx="38" ry="30" fill="#F5D5A0" stroke="#333" stroke-width="3"/>
+    <circle cx="135" cy="82" r="28" fill="#F5D5A0" stroke="#333" stroke-width="3"/>
+    <ellipse cx="112" cy="66" rx="13" ry="18" fill="#E8C07A" stroke="#333" stroke-width="3" transform="rotate(-15,112,66)"/>
+    <ellipse cx="158" cy="66" rx="13" ry="18" fill="#E8C07A" stroke="#333" stroke-width="3" transform="rotate(15,158,66)"/>
+    <!-- Happy closed eyes -->
+    <path d="M124 80 Q128 75 132 80" stroke="#333" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M138 80 Q142 75 146 80" stroke="#333" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="135" cy="87" rx="3" ry="2" fill="#333"/>
+    <path d="M131 91 Q135 96 139 91" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <ellipse cx="135" cy="94" rx="2.5" ry="3.5" fill="#FF9CAD"/>
+    <rect x="117" y="102" width="34" height="6" rx="3" fill="#FF6B6B" stroke="#333" stroke-width="2"/>
+    <ellipse cx="118" cy="158" rx="9" ry="7" fill="#F5D5A0" stroke="#333" stroke-width="3"/>
+    <ellipse cx="152" cy="158" rx="9" ry="7" fill="#F5D5A0" stroke="#333" stroke-width="3"/>
+    <path d="M168 128 Q182 115 178 100" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+    <!-- Heart between them -->
+    <path d="M85 55 C85 48 94 45 97 52 C100 45 109 48 109 55 C109 65 97 72 97 72 C97 72 85 65 85 55 Z" fill="#FF6B8A" stroke="#333" stroke-width="2"/>
+    <!-- Small hearts -->
+    <path d="M75 35 C75 32 79 31 80 34 C81 31 85 32 85 35 C85 39 80 42 80 42 C80 42 75 39 75 35 Z" fill="#FFB6C1"/>
+    <path d="M108 38 C108 35 112 34 113 37 C114 34 118 35 118 38 C118 42 113 45 113 45 C113 45 108 42 108 38 Z" fill="#FFB6C1"/>
+    <!-- Sparkles -->
+    <path d="M95 22 L96.5 17 L98 22 L103 23.5 L98 25 L96.5 30 L95 25 L90 23.5 Z" fill="#FFD93D"/>
+  </g>
+</svg>

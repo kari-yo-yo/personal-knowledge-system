@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- White dog thinking/curious -->
+  <g transform="translate(30,15)">
+    <!-- Body -->
+    <ellipse cx="70" cy="140" rx="48" ry="38" fill="white" stroke="#333" stroke-width="3"/>
+    <!-- Head -->
+    <circle cx="70" cy="72" r="34" fill="white" stroke="#333" stroke-width="3"/>
+    <!-- Left ear -->
+    <ellipse cx="40" cy="52" rx="12" ry="20" fill="white" stroke="#333" stroke-width="3" transform="rotate(-15,40,52)"/>
+    <!-- Right ear (tilted for curiosity) -->
+    <ellipse cx="100" cy="48" rx="12" ry="20" fill="white" stroke="#333" stroke-width="3" transform="rotate(25,100,48)"/>
+    <!-- Eyes (one big, one curious) -->
+    <circle cx="58" cy="70" r="5" fill="#333"/>
+    <circle cx="59" cy="69" r="1.5" fill="white"/>
+    <circle cx="82" cy="68" r="5" fill="#333"/>
+    <circle cx="83" cy="67" r="1.5" fill="white"/>
+    <!-- Eyebrow (raised) -->
+    <path d="M76 58 Q82 53 88 58" stroke="#333" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <!-- Nose -->
+    <ellipse cx="70" cy="79" rx="4" ry="3" fill="#333"/>
+    <!-- Mouth (slight O of surprise) -->
+    <ellipse cx="70" cy="85" rx="4" ry="3" fill="#FF9CAD" stroke="#333" stroke-width="1.5"/>
+    <!-- Front paws -->
+    <ellipse cx="45" cy="165" rx="11" ry="8" fill="white" stroke="#333" stroke-width="3"/>
+    <ellipse cx="95" cy="165" rx="11" ry="8" fill="white" stroke="#333" stroke-width="3"/>
+    <!-- Tail -->
+    <path d="M118 130 Q138 115 133 100" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <!-- Thought bubbles -->
+    <circle cx="115" cy="42" r="4" fill="#A8D8EA"/>
+    <circle cx="125" cy="32" r="6" fill="#A8D8EA"/>
+    <ellipse cx="145" cy="20" rx="16" ry="14" fill="#A8D8EA" stroke="#333" stroke-width="2"/>
+    <!-- Lightbulb inside thought -->
+    <path d="M140 12 Q145 8 150 12 L152 20 Q145 24 138 20 Z" fill="#FFD93D" stroke="#333" stroke-width="1.5"/>
+    <line x1="145" y1="24" x2="145" y2="28" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
+</svg>

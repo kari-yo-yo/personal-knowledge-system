@@ -1,0 +1,15 @@
+{
+  "name": "个人成长知识系统",
+  "short_name": "知识系统",
+  "description": "树状层级知识管理，支持网络关联和AI助手",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFF8F0",
+  "theme_color": "#FF6B8A",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/pups/pup-default.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/pups/pup-default.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "maskable" },
+    { "src": "/pups/pup-default.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
